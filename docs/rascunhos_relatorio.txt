@@ -1,0 +1,9 @@
+11/5
+Rafael:
+Iniciando o projeto, a primeira coisa foi seguir um dos objetivos propostos do projeto:
+	Aprender como as shells criam novos processos filhos e conectam a entrada/saída (I/O) ao terminal.
+Pesquisei um pouco sobre fork() e pipe(), funções que acredito que farão o que foi dito acima, mas durante essa pesquisa, encontrei um problema:
+	Não entendia o funcionamento da PATH, variáveis de ambiente do Linux que direcionam os caminhos (paths) onde serão encontrados os comandos que existem no shell.
+
+Acredito que vai ser melhor discutir sobre isso com meus colegas, pois a parte da implementação da execução de comandos ficou com eles.
+Portanto hoje fiz a base do processo pai, que usa uma thread para ler o que o usuário está pedindo como comando e a thread principal para direcionar o funcionamento a partir do comando.
