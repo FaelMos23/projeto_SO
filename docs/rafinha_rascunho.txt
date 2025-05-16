@@ -7,3 +7,10 @@ Pesquisei um pouco sobre fork() e pipe(), funções que acredito que farão o qu
 
 Acredito que vai ser melhor discutir sobre isso com meus colegas, pois a parte da implementação da execução de comandos ficou com eles.
 Portanto hoje fiz a base do processo pai, que usa uma thread para ler o que o usuário está pedindo como comando e a thread principal para direcionar o funcionamento a partir do comando.
+
+
+/// PROBLEMA
+Quando o usuário rodava o comando 'exit', o sistema não fechava pois a thread de leitura estava de novo no começo do loop de aguardar input do usuário e a thread principal estava esperando a thread de leitura.
+
+/// RESOLUÇÃO
+Foi adicionado, quando houver a saída do sistema, um cancelamento da thread de leitura, assim garantindo que a shell fecha no momento que o usuário roda 'exit'

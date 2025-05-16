@@ -8,7 +8,6 @@
 #include "../lib/main_funcs.h"  // functions for use in this file
 
 // this is the character that will show up before every command
-const char stchar = '>';
 const char* RESET = "\033[0m";
 const char* GREEN = "\033[32m";
 const char* BLUE =  "\033[34m";
@@ -34,7 +33,7 @@ int main()
 
     while(can_run)
     {
-        printf("\n%sUser@machine: %s/path%s\n%c ", GREEN, BLUE, RESET, stchar);
+        printf("\n%sUser@machine: %s/path%s\n> ", GREEN, BLUE, RESET);
         while(can_read)
             sched_yield();    // red light
 
