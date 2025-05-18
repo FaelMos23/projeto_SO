@@ -22,7 +22,7 @@ int main()
 
     /*
         p1 ==> father <-- child
-        p2 ==>  child --> father
+        p2 ==> father --> child
     */
 
     // creates pipes
