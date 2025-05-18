@@ -37,48 +37,31 @@ static inline void* reading(void* a)
     return NULL;
 }
 
-// returns amount of spaces
-static inline int hasSpace(char* str)
-{
-    int i = 1, res = 0;
-    char curr = str[0];
-
-    while(curr != '\n')
-    {
-        if(curr == ' ')
-        {
-            res++;
-            break;
-        }
-        curr = str[i];
-    }
-
-    return res;
-}
-
 static inline void getCommandArgs(char **outComm, char ***outArgs, char *line)
 {
-  // count comm+args
-  int count = 0;
-  char *tmp = strdup(line);
-  // while there still are arguments, keep going
-  for (char *p = strtok(tmp, " \n"); p; p = strtok(NULL, " \n")) {
-    count++;
-  }
-  free(tmp);
+    // count comm+args
+    int count = 0;
+    char *tmp = strdup(line);
+    // while there still are arguments, keep going
+    for (char *p = strtok(tmp, " \n"); p; p = strtok(NULL, " \n"))
+    {
+        count++;
+    }
+    free(tmp);
 
-  // allocate argv array (NULL‑terminated)
-  *outArgs = (char**) malloc((count + 1) * sizeof(char*));
+    // allocate argv array (NULL‑terminated)
+    *outArgs = (char**) malloc((count + 1) * sizeof(char*));
 
-  // add command and args to argv
-  int i = 0;
-  char *tok = strtok(line, " \n");
-  *outComm = tok;
-  (*outArgs)[i++] = tok;
-  while ((tok = strtok(NULL, " \n"))) {
+    // add command and args to argv
+    int i = 0;
+    char *tok = strtok(line, " \n");
+    *outComm = tok;
     (*outArgs)[i++] = tok;
-  }
-  (*outArgs)[i] = NULL;
+    while ((tok = strtok(NULL, " \n")))
+    {
+        (*outArgs)[i++] = tok;
+    }
+    (*outArgs)[i] = NULL;
 }
 
 

@@ -2,8 +2,8 @@
 #include <fcntl.h>              /* Definition of O_* constants */
 #include <unistd.h>
 #include <sys/wait.h>
-#include <libgen.h>
-#include <pwd.h>
+#include <libgen.h>             // to get path to executable shell file
+#include <pwd.h>                // environmental variables (frompasswd)
 
 // functions
 #include "../lib/main_funcs.h"  // functions for use in this file

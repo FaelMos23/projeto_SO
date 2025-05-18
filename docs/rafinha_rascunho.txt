@@ -1,5 +1,4 @@
 11/5
-Rafael:
 Iniciando o projeto, a primeira coisa foi seguir um dos objetivos propostos do projeto:
 	Aprender como as shells criam novos processos filhos e conectam a entrada/saída (I/O) ao terminal.
 Pesquisei um pouco sobre fork() e pipe(), funções que acredito que farão o que foi dito acima, mas durante essa pesquisa, encontrei um problema:
@@ -14,3 +13,13 @@ Quando o usuário rodava o comando 'exit', o sistema não fechava pois a thread 
 
 /// RESOLUÇÃO
 Foi adicionado, quando houver a saída do sistema, um cancelamento da thread de leitura, assim garantindo que a shell fecha no momento que o usuário roda 'exit'
+
+
+18/5
+Depois de uma discussão com meus colegas que estão codando no projeto, decidimos por ter as variáveis de ambiente no arquivo shell, se qualquer comando precisar, passaremos para esse comando por pipe.
+
+/// PROBLEMA
+Eu nunca tinha feito pipes que passavam de um processo executando cum arquivo para outro processo executando outro arquivo, já que os pipes definidos no primeiro arquivo seriam perdidos ao rodar a função "execv".
+
+/// RESOLUÇÃO
+Tem como direcionar as saidas e entradas dos pipes para o STDIN e STDOUT do programa sendo executado pelo processo filho, assim, para eles, fgets/scanf e printf, mas os valores dessas funções vai para ou vem dos pipes.
