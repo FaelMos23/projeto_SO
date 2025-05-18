@@ -2,6 +2,7 @@
 #include <fcntl.h>              /* Definition of O_* constants */
 #include <unistd.h>
 #include <sys/wait.h>
+#include <libgen.h>
 #include <pwd.h>
 
 // functions
@@ -36,8 +37,12 @@ int main()
     gethostname(MACHINE, sizeof(MACHINE));
     strcpy(HOME, pw->pw_dir);
     strcpy(CWD, HOME);          // CWD starts at HOME
-    getcwd(PATH, sizeof(PATH));
-    strcat(PATH, "/bin/comm");
+
+    // get path to this executable and concatenate with the comm directory
+    int len = readlink("/proc/self/exe", PATH, sizeof(PATH)-1);
+    PATH[len] = '\0';
+    strcpy(PATH, dirname(PATH));
+    strcat(PATH, "/comm");
 
     
     // defining values
