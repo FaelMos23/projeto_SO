@@ -21,7 +21,7 @@ int main()
 
     // initializes enviroment variables
     struct passwd* pw = getpwuid(geteuid());
-    
+
     if (pw == NULL) {
         perror("getpwuid");
         return 1;
@@ -44,7 +44,7 @@ int main()
     strcpy(PATH, dirname(PATH));
     strcat(PATH, "/comm");
 
-    
+
     // defining values
     int can_run = 1;
     char read_buffer[BUFFER_SIZE];
@@ -74,7 +74,7 @@ int main()
 
     while(can_run)
     {
-            
+
         if (pipe(pp2c) < 0)
             exit(1);
         if (pipe(pc2p) < 0)
@@ -95,11 +95,11 @@ int main()
             pthread_cancel(reader); // stops the thread, even if it is at fgets
 
         }
-        
+
         // now that we know we won't exit, we will do the fork and run the command
         else
         {
-        
+
             pid_t pid = fork();
             if(pid < 0)
                 return 1;
@@ -124,14 +124,38 @@ int main()
                     child_buffer[verify] = '\0';
                     printf("%s", child_buffer);
                 }
-                
+
+                // pipe treatment for command cd
+                if (!strcmp(command, "cd")) {
+                    // send HOME to child (cd.exe)
+                    verify = write(pp2c[1], HOME, BUFFER_SIZE);
+                    if (!verify)
+                        exit(1);
+
+                    // send CWD to child (cd.exe)
+                    verify = write(pp2c[1], CWD, BUFFER_SIZE);
+                    if (!verify)
+                        exit(1);
+
+                    // parent receives new path
+                    verify = read(pc2p[0], child_buffer, BUFFER_SIZE);
+                    if (!verify)
+                        exit(1);
+
+                    child_buffer[verify] = '\0';
+
+                    // prints the new path
+                    // printf("%s", child_buffer);
+                    // update CWD
+                    strncpy(CWD, child_buffer, sizeof(CWD));
+                }
 
                 close(pc2p[0]);
                 close(pp2c[1]);
                 waitpid(pid, NULL, 0);
             }
             // child
-            else 
+            else
             {
                 close(pc2p[0]); // no receiving
                 close(pp2c[1]); // no sending
@@ -139,7 +163,7 @@ int main()
                 // points one pipe to child and the other to parent
                 dup2(pp2c[0], STDIN_FILENO);
                 dup2(pc2p[1], STDOUT_FILENO);
-                
+
                 close(pc2p[1]);
                 close(pp2c[0]);
 
@@ -148,7 +172,16 @@ int main()
                     char fullPath[1024];
                     strcpy(fullPath, PATH);
                     strcat(fullPath, "/test.exe");
-                    
+
+                    execv(fullPath, args);
+                }
+
+                if(!strcmp(command, "cd"))
+                {
+                    char fullPath[1024];
+                    strcpy(fullPath, PATH);
+                    strcat(fullPath, "/cd.exe");
+
                     execv(fullPath, args);
                 }
                 // execv error handling
