@@ -1,0 +1,17 @@
+o cd.c é uma programa distinto com sua main (eu acho) que recebe o path home e a localização do
+diretório atual através pipe (ele está comunicando com o processo pai, que é o shell.c) e como
+parâmetro char agv0 (comando que nesse caso é cd, o que não faz diferença) e char agv1 (sendo
+o argumento que modificará o arquivo ou melhor, o diretório atual. Para isso ele precisa fazer 
+uma verificação, se ele existe, precisamos verificar. Se ele começa com "/" ele não é um 
+caminho relativo, mas sim absoluto. Sabendo disso vamos concatenar o que está escrito no 
+comando arv1 com o caminho atual passado no pipe e verificar se ele existe. Se ele existir, 
+vamos modificar o diretório ou retorna o novo diretório atual (não sei como faz isso através de
+pipe), se não tiver nenhum argumento, retorna como novo diretória atual a path home que foi 
+passada pelo pipe).
+
+Tive dificuldades para entender o funcionamento do comando cd. Não estava entendendo que o 
+arquivo cd.c estava lendo o CWD passado pela shell por causa do uso do comando fgets(). Pela 
+shell eu passava a HOME e o CWD, depois no cd.c eu pegava o que estva no buffer usando fgets() 
+para pegar a home depois o cwd. O que acontecia era que para a char home do meu cd.c pegava 
+apenas uma informação que é da variável home. Teoricamente mais de uma informação é passada 
+pelo pipe, mas não sei exatamente o que está acontecendo.
