@@ -2,11 +2,12 @@
 #define MAIN_FUNCS_H
 
 
+#define _GNU_SOURCE             /* See feature_test_macros(7) */
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
 #include <string.h>
-#define BUFFER_SIZE 256
+#define BUFFER_SHELL_SIZE 256
 
 
 typedef struct Read_args
@@ -30,7 +31,7 @@ static inline void* reading(void* a)
             sched_yield();   // red light
 
         // green light
-        if (fgets(args->buffer, BUFFER_SIZE, stdin))    // buffer is being used as a pointer, no need for *
+        if (fgets(args->buffer, BUFFER_SHELL_SIZE, stdin))    // buffer is being used as a pointer, no need for *
             *args->can_read = 0;                                            // returns to red light, only if a value was read
     }
 
@@ -62,6 +63,15 @@ static inline void getCommandArgs(char **outComm, char ***outArgs, char *line)
         (*outArgs)[i++] = tok;
     }
     (*outArgs)[i] = NULL;
+}
+
+
+static inline char* getEnv(char* eVar)
+{
+    char* currChar = eVar;
+    while(*(currChar++) != '=');
+
+    return currChar;
 }
 
 
