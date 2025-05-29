@@ -53,124 +53,335 @@ int main()
     int len = readlink("/proc/self/exe", temp_PATH, sizeof(temp_PATH)-1);
     temp_PATH[len] = '\0';
     strcat(env_var[4], dirname(temp_PATH));
-    strcat(env_var[4], "/comm");
+    strcat(env_var[4], "/comm"); // add ":/home/fael/shared/projeto_SO/bin/extras" at the end to be able to access the directory 'extras' 
+    
+    // number of paths
+    int path_dirs = 1;
     
     // defining values
     int can_run = 1;
     char read_buffer[BUFFER_SHELL_SIZE];
     char child_buffer[BUFFER_SHELL_SIZE];
-    char* command;
-    char** args;
-
-    // input thread definition
-    int can_read = 0;   // traffic light
-    read_args a;
-    a.can_run = &can_run;
-    a.can_read = &can_read;
-    a.buffer = read_buffer;
-
-    pthread_t reader;
-    pthread_create(&reader, NULL, reading, (void*) &a);
 
     // pipes initialization
     int verify;
-    int pp2c[2];   // pipe parent to child
-    int pc2p[2];   // pipe child to parent
-    /*
-        p[0] -> receive
-        p[1] -> send
-    */
+
+    // script interaction
+    FILE* file = NULL;
+    int readScript = 0;
 
 
     while(can_run)
     {
-            
-        if (pipe(pp2c) < 0)
-            exit(1);
-        if (pipe(pc2p) < 0)
-            exit(1);
-
         printf("\n%s%s@%s: %s%s%s\n> ", GREEN, getEnv(env_var[0]), getEnv(env_var[1]), BLUE, getEnv(env_var[3]), RESET);
-        can_read = 1;
-        while(can_read)
-            sched_yield();    // red light
 
-        // green light
+
+        // reads from script
+        if(readScript)
+        {
+            if(feof(file))
+            {
+                readScript = 0;
+                fclose(file);
+                fgets(read_buffer, BUFFER_SHELL_SIZE, stdin);
+            }
+            else
+            {
+                fgets(read_buffer, BUFFER_SHELL_SIZE, file);
+                printf("%s\n", read_buffer); // print command that was asked
+            }
+        }
+        else  // reads from terminal
+            fgets(read_buffer, BUFFER_SHELL_SIZE, stdin);
+
 
         // check for lineskip
         if(read_buffer[0] != '\n')
         {
-
-            getCommandArgs(&command, &args, read_buffer);
-
-
-            // exit?
-            if(!strcmp(command, "exit")){
-
-                can_run = 0;
-                pthread_cancel(reader); // stops the thread, even if it is at fgets
-
-            }
+            // array that contains the information for each flag
+            proc_info* procArray;
+            int num_pipes = 0;
+            int currPipe = 0;
+        
             
-            // now that we know we won't exit, we will do the fork and run the command
-            else
+            int num_procs = getProcesses(&procArray, read_buffer, &num_pipes);
+
+            // prepare pipes
+            /*
+                p[0] -> receive
+                p[1] -> send
+            */
+            int i;
+            int pipes[num_pipes][2];
+            for(i=0; i<num_pipes; i++)
             {
-            
-                pid_t pid = fork();
-                if(pid < 0)
-                    return 1;
+                if (pipe(pipes[i]) < 0)
+                    exit(1);
+            }
+            // used to know which pipe is being set up
 
-                // parent
-                if(pid > 0)
+            // setting path array
+            char** pathArray;
+            pathArray = NULL;
+
+            // setting pipes
+            pid_t pid[num_procs];
+
+            int proc_loop;
+            for(proc_loop=0; proc_loop<num_procs; proc_loop++)
+            {
+                if(!strcmp(procArray[proc_loop].command, "script"))
                 {
-                    close(pc2p[1]); // no sending
-                    close(pp2c[0]); // no receiving
+                    file = fopen(procArray[proc_loop].args[1], "r");
 
+                    if (!file) {
+                        perror("error opening file");
+                        return 1;
+                    }
 
-
-                    // MODIFY TO APPLY SCALABILITY
-                    // pipe treatment
-                    if(!strcmp(command, "test"))
+                    readScript = 1;
+                }
+                else
+                {
+                    // exit?
+                    if(!strcmp(procArray[proc_loop].command, "exit"))
+                        can_run = 0;
+                    else
                     {
+                        // cd?
+                        if(!strcmp(procArray[proc_loop].command, "cd"))
+                        {
+                            // inserir código de "cd"
+                        }
+                        else
+                        {
+                            // path?
+                            if(!strcmp(procArray[proc_loop].command, "path"))
+                            {
+                                // inserir código de "path"
+                            }
+                            else
+                            {
+                                // executable?
+                                if(procArray[proc_loop].command[0] == '.' || procArray[proc_loop].command[0] == '/')
+                                {
+                                    pid[proc_loop] = fork();
+                                    if(pid[proc_loop] < 0)
+                                        return 1;
+
+                                    // child
+                                    if(pid[proc_loop] == 0)
+                                    {
+                                        // close unused pipes for this process
+                                        int pipe_loop;
+                                        for(pipe_loop=0; pipe_loop<num_pipes; pipe_loop++)
+                                        {
+                                            if(pipe_loop != currPipe && pipe_loop+1 != currPipe)
+                                            {
+                                                close(pipes[pipe_loop][0]);
+                                                close(pipes[pipe_loop][1]);
+                                            }
+                                        }
+
+                                        if(procArray[proc_loop].flags & IN_PROC)
+                                        {
+                                            close(pipes[currPipe][1]); // no sending
+                                            dup2(pipes[currPipe][0], STDIN_FILENO);
+                                            close(pipes[currPipe][0]); // end of transaction
+                                            currPipe++; // prepares a new pipe if needed
+                                        }
+
+                                        if(procArray[proc_loop].flags & OUT_PROC)
+                                        {
+                                            close(pipes[currPipe][0]); // no receiving
+                                            dup2(pipes[currPipe][1], STDOUT_FILENO);
+                                            close(pipes[currPipe][1]); // end of transaction
+                                        }
+
+                                        if(procArray[proc_loop].flags & OUT_FILE)
+                                        {
+                                            // send information to 
+                                            // procArray[proc_loop].outputFilePath
+                                            // may be relative or absolute path
+
+                                            
+                                            char filePath_output[BUFFER_SHELL_SIZE];
+                                            if(procArray[proc_loop].outputFilePath[0] == '.')
+                                            {
+                                                // CWD
+                                                strcpy(filePath_output, getEnv(env_var[3]));
+                                                strcat(filePath_output, "/");
+                                                strcat(filePath_output, procArray[proc_loop].command);
+                                            }
+                                            else
+                                            {
+                                                strcpy(filePath_output, procArray[proc_loop].command);
+                                            }
+
+                                            
+                                            int fd = open(filePath_output,
+                                                            O_WRONLY | O_CREAT | O_TRUNC,
+                                                            0666 ); // rw-rw-rw-
+                                            if (fd < 0) {
+                                                perror("open for redirection");
+                                                _exit(2);
+                                            }
+                                            // redirect file as output
+                                            if (dup2(fd, STDOUT_FILENO) < 0) {
+                                                perror("dup2 for redirection");
+                                                _exit(2);
+                                            }
+                                            close(fd);
+                                        }
+
+                                        // RUN THE EXECUTABLE AFTER REDIRECTING INPUT/OUTPUT
+                                        char filePath_file[BUFFER_SHELL_SIZE];
+                                        if(procArray[proc_loop].command[0] == '.')
+                                        {
+                                            // CWD
+                                            strcpy(filePath_file, getEnv(env_var[3]));
+                                            strcat(filePath_file, "/");
+                                            strcat(filePath_file, procArray[proc_loop].command);
+                                        }
+                                        else
+                                        {
+                                            strcpy(filePath_file, procArray[proc_loop].command);
+                                        }
+
+                                        execv(filePath_file, procArray[proc_loop].args);
+
+                                        // error handling
+                                        char error_text[BUFFER_SHELL_SIZE];
+                                        strcpy(error_text, "Fail to run executable ");
+                                        strcat(error_text, procArray[proc_loop].command);
+                                        perror(error_text);
+                                        _exit(2);
+                                    }
+                                }
+                                else
+                                {
+                                    // all built-in commands and executables are taken care of
+                                    // run commands
+
+                                    pid[proc_loop] = fork();
+                                    if(pid[proc_loop] < 0)
+                                        return 1;
+
+                                    // child
+                                    if(pid[proc_loop] == 0)
+                                    {
+                                        // close unused pipes for this process
+                                        int pipe_loop;
+                                        for(pipe_loop=0; pipe_loop<num_pipes; pipe_loop++)
+                                        {
+                                            if(pipe_loop != currPipe && pipe_loop+1 != currPipe)
+                                            {
+                                                close(pipes[pipe_loop][0]);
+                                                close(pipes[pipe_loop][1]);
+                                            }
+                                        }
+
+
+                                        if(procArray[proc_loop].flags & IN_PROC)
+                                        {
+                                            close(pipes[currPipe][1]); // no sending
+                                            dup2(pipes[currPipe][0], STDIN_FILENO);
+                                            close(pipes[currPipe][0]); // end of transaction
+                                            currPipe++; // prepares a new pipe if needed
+                                        }
+
+                                        if(procArray[proc_loop].flags & OUT_PROC)
+                                        {
+                                            close(pipes[currPipe][0]); // no receiving
+                                            dup2(pipes[currPipe][1], STDOUT_FILENO);
+                                            close(pipes[currPipe][1]); // end of transaction
+                                        }
+
+                                        if(procArray[proc_loop].flags & OUT_FILE)
+                                        {
+                                            // send information to 
+                                            // procArray[proc_loop].outputFilePath
+                                            // may be relative or absolute path
+
+                                            
+                                            char filePath_output[BUFFER_SHELL_SIZE];
+                                            if(procArray[proc_loop].outputFilePath[0] == '.')
+                                            {
+                                                // CWD
+                                                strcpy(filePath_output, getEnv(env_var[3]));
+                                                strcat(filePath_output, "/");
+                                                strcat(filePath_output, procArray[proc_loop].outputFilePath);
+                                            }
+                                            else
+                                            {
+                                                strcpy(filePath_output, procArray[proc_loop].outputFilePath);
+                                            }
+
+
+                                            int fd = open(filePath_output,
+                                                            O_WRONLY | O_CREAT | O_TRUNC,
+                                                            0666 ); // rw-rw-rw-
+                                            if (fd < 0) {
+                                                perror("open for redirection");
+                                                _exit(2);
+                                            }
+                                            // redirect file as output
+                                            if (dup2(fd, STDOUT_FILENO) < 0) {
+                                                perror("dup2 for redirection");
+                                                _exit(2);
+                                            }
+                                            close(fd);
+                                        }
+
+
+                                        // MUTIPLE PATH HANDLING
+                                        int numPaths = getPath(getEnv(env_var[4]), &pathArray);
+
+                                        // tries all paths
+                                        int path_loop;
+                                        for(path_loop=0; path_loop<numPaths; path_loop++)
+                                        {
+                                            // RUN THE COMMAND AFTER REDIRECTING INPUT/OUTPUT
+                                            char filePath[BUFFER_SHELL_SIZE];
+                                            strcpy(filePath, pathArray[path_loop]);
+                                            strcat(filePath, "/");
+                                            strcat(filePath, procArray[proc_loop].command);
+
+                                            execve(filePath, procArray[proc_loop].args, envp);
+                                        }
+                                        // error handling, none of the paths worked
+                                        char error_text[BUFFER_SHELL_SIZE];
+                                        strcpy(error_text, "Fail to run command ");
+                                        strcat(error_text, procArray[proc_loop].command);
+                                        perror(error_text);
+                                        _exit(2);
+
+                                    }
+
+                                }
+                                
+                            }
+
+                        }
+                    
                     }
                     
-
-                    close(pc2p[0]);
-                    close(pp2c[1]);
-                    waitpid(pid, NULL, 0);
-                }
-                // child
-                else 
-                {
-                    close(pc2p[0]); // no receiving
-                    close(pp2c[1]); // no sending
-
-                    // points one pipe to child and the other to parent
-                    //dup2(pp2c[0], STDIN_FILENO);
-                    //dup2(pc2p[1], STDOUT_FILENO);
-                    
-                    close(pc2p[1]);
-                    close(pp2c[0]);
-                
-                    char filePath[BUFFER_SHELL_SIZE];
-                    strcpy(filePath, getEnv(envp[4]));
-                    strcat(filePath, "/");
-                    strcat(filePath, command);
-
-                    execve(filePath, args, envp);
-
-                    // error handling
-                    perror("Fail to run command: ");
-                    _exit(2);
                 }
 
             }
-            can_read = 1;    // returns to red light
-        }
+            // only the parent will get here
+            // wait for all forks
+            for(proc_loop=0; proc_loop<num_procs; proc_loop++)
+                waitpid(pid[proc_loop], NULL, 0);
+
+            if(pathArray != NULL)
+                free(pathArray);
+            freeProcArr(procArray, num_procs);
 
         }
 
-    pthread_join(reader, NULL); // waits for thread to finish
+    }
+
     printf("\nShell Terminated.\n");
     return 0;
 }

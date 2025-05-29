@@ -5,66 +5,205 @@
 #define _GNU_SOURCE             /* See feature_test_macros(7) */
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
 #include <string.h>
 #define BUFFER_SHELL_SIZE 256
 
+// FLAGS MASKS
+#define OUT_FILE 0b100
+#define IN_PROC  0b010
+#define OUT_PROC 0b001
 
-typedef struct Read_args
+
+typedef struct Process_info{
+    char* command;
+    int argc;
+    char** args;
+    char* outputFilePath;
+    int flags;
+}proc_info;
+/*
+    FLAGS EXPLANATION
+    3 BITS
+
+    --- 0b100 means OUTPUT PIPED TOWARDS FILE "target_comm arg1 arg2 > file.extension"
+
+    --- 0b010 means INPUT PIPED FROM ANOTHER PROCESS "other_comm arg1 | target_comm arg1 arg2"
+
+    --- 0b001 means OUTPUT PIPED TOWARDS ANOTHER FILE "target_comm arg1 arg2 | other_comm arg1"
+
+    --- Possible iterations
+        000 - NORMAL
+        001 - OUT PROC
+        010 - IN PROC
+        100 - OUT FILE
+        011 - IN PROC, OUT PROC
+        110 - IN PROC, OUT FILE
+*/
+
+// returns number of processes found
+static inline int getProcesses(proc_info** processArray, char* text, int* num_pipes)
 {
-    int* can_read;
-    int* can_run;
-    char* buffer; // don't need to define size, as long as I use fgets to get an appropriate size
-}read_args;
+    int i, num_procs = 1;
 
-
-static inline void* reading(void* a)
-{
-    // permits the main thread to cancel this one, because when exit was typed, this thread was still mid loop, in fgets
-    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-    pthread_setcanceltype (PTHREAD_CANCEL_DEFERRED, NULL);
-
-    read_args* args = (read_args*) a;
-    while(*args->can_run){
-        
-        while(!(*args->can_read))
-            sched_yield();   // red light
-
-        // green light
-        if (fgets(args->buffer, BUFFER_SHELL_SIZE, stdin))    // buffer is being used as a pointer, no need for *
-            *args->can_read = 0;                                            // returns to red light, only if a value was read
-    }
-
-    return NULL;
-}
-
-static inline void getCommandArgs(char **outComm, char ***outArgs, char *line)
-{
-    // count comm+args
-    int count = 0;
-    char *tmp = strdup(line);
-    // while there still are arguments, keep going
-    for (char *p = strtok(tmp, " \n"); p; p = strtok(NULL, " \n"))
+    for(i=0; i<BUFFER_SHELL_SIZE; i++)
     {
-        count++;
+        if(text[i] == '\n')
+            break;
+
+        if(text[i] == '&' || text[i] == '|')
+        {
+            num_procs++;
+            if(text[i] == '|')
+                (*num_pipes)++;
+        }
     }
+
+    
+    int proc_loop, arg_loop;
+    proc_info* procArray = (proc_info*) malloc(num_procs*sizeof(proc_info));
+    for(proc_loop = 0; proc_loop<num_procs; proc_loop++)
+    {
+        // initializing with NULL
+        procArray[proc_loop].command = NULL;
+        procArray[proc_loop].args = NULL;
+        procArray[proc_loop].outputFilePath = NULL;
+    }
+
+    // start separating text into tokens
+    char *tmp = strdup(text);
+    char *tmp2 = strdup(text);
+    
+    int pipeIn = 0;
+    char* storeTok;
+    char* storeTokCount;
+
+    char *tok_count = strtok_r(tmp, " \n",&storeTokCount); // starts the token analyzing
+    char *tok = strtok_r(tmp2, " \n", &storeTok); // starts the token analyzing
+
+
+    for(proc_loop = 0; proc_loop<num_procs; proc_loop++)
+    {
+        // SET FLAGS AND COUNT ARGUMENTS
+        procArray[proc_loop].flags = pipeIn; // sets to 0 if this process doesn't receive from another process
+        pipeIn = 0; // resets the pipeIn for the next command
+
+        int count = 0;
+        for (; tok_count; tok_count = strtok_r(NULL, " \n", &storeTokCount))
+        {
+            if(tok_count[0] == '|')
+            {
+                procArray[proc_loop].flags = procArray[proc_loop].flags | OUT_PROC;
+                pipeIn = IN_PROC; // for next process
+                
+                break;
+            }
+            if(tok_count[0] == '>')
+            {
+                procArray[proc_loop].flags = procArray[proc_loop].flags | OUT_FILE;
+                tok_count = strtok_r(NULL, " \n", &storeTokCount);
+                procArray[proc_loop].outputFilePath = strdup(tok_count); // must be freed
+                tok_count = strtok_r(NULL, " \n", &storeTokCount); // prepares next process (only skips '&', others don't make sense)
+
+                break;
+            }
+            if(tok_count[0] == '&') // another process
+            {
+                break;
+            }
+            count++;
+        }
+        tok_count = strtok_r(NULL, " \n", &storeTokCount); // prepares next process
+
+        procArray[proc_loop].argc = count;
+
+        // solves error with comm1 arg1 > file.txt & comm2 arg2
+        // for when there is a process after a file redirection
+        if(tok[0] == '.' || tok[0] == '/')
+        {
+            tok = strtok_r(NULL, " \n", &storeTok);
+            tok = strtok_r(NULL, " \n", &storeTok);
+        }
+
+        // command is first token
+        procArray[proc_loop].command = strdup(tok); // must be freed
+
+        // sets array of args size
+        procArray[proc_loop].args = (char**) malloc((count+1)*sizeof(char*));
+        for (arg_loop=0; arg_loop<count; arg_loop++)
+        {
+            procArray[proc_loop].args[arg_loop] = strdup(tok); // must be freed
+
+            tok = strtok_r(NULL, " \n", &storeTok);
+        }
+        tok = strtok_r(NULL, " \n", &storeTok); // prepares next process
+
+        // NULL terminated string
+        procArray[proc_loop].args[arg_loop] = NULL;
+    }
+
+
+    // result
+    *processArray = procArray;
+    
     free(tmp);
+    free(tmp2);
 
-    // allocate argv array (NULL‑terminated)
-    *outArgs = (char**) malloc((count + 1) * sizeof(char*));
-
-    // add command and args to argv
-    int i = 0;
-    char *tok = strtok(line, " \n");
-    *outComm = tok;
-    (*outArgs)[i++] = tok;
-    while ((tok = strtok(NULL, " \n")))
-    {
-        (*outArgs)[i++] = tok;
-    }
-    (*outArgs)[i] = NULL;
+    return num_procs;
 }
 
+static inline void freeProcArr(proc_info* procArray, int num_procs)
+{
+    int clean;
+    for(clean=0; clean<num_procs; clean++)
+    {
+        if(procArray[clean].command != NULL)
+            free(procArray[clean].command);
+
+        if(procArray[clean].args != NULL)
+        {
+            for(int i=0; i<procArray[clean].argc; i++)
+            {
+                if(procArray[clean].args[i] != NULL)
+                    free(procArray[clean].args[i]);
+            }
+
+            free(procArray[clean].args);
+        }
+
+        if(procArray[clean].outputFilePath != NULL)
+            free(procArray[clean].outputFilePath);
+    }
+
+    free(procArray);
+}
+
+// separates the path into an Array
+static inline int getPath(char* allPaths, char*** pathArray)
+{
+    int numPaths = 1;
+
+    int i;
+    int allPathsSize = strlen(allPaths);
+    for(i=0; i<allPathsSize; i++)
+        if(allPaths[i] == ':') numPaths++;
+
+    char* tmp;
+    tmp = strdup(allPaths); // must be freed
+    
+    char* tok = strtok(tmp, ":");
+
+    char** pA = (char**) malloc(numPaths*sizeof(char*));
+
+    for(i=0; i<numPaths; i++)
+    {
+        pA[i] = tok;
+        tok = strtok(NULL, ":");
+    }
+
+    *pathArray = pA;
+
+    return numPaths;
+}
 
 static inline char* getEnv(char* eVar)
 {
