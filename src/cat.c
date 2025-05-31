@@ -1,9 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+
+
 int main(int argc, char *argv[]) {
 
-    FILE *file = fopen(argv[1], "r");   //open file
+    char filepath[256];
+    const char* cwd = getenv("CWD");
+    snprintf(filepath, sizeof(filepath), "%s/%s", cwd, argv[1]);
+    FILE *file = fopen(filepath, "r");   //open file
     
     
     char c;

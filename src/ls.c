@@ -9,19 +9,23 @@
 #include "../lib/ls_funcs.h"
 
 int main(int argc, char *argv[]) {
-    const char *directory = "."; // default directory
+    char directory[256];
+    const char *cwd = getenv("CWD"); // current directory
+    snprintf(directory, sizeof(directory), "%s", cwd);
     int show_all = 0; //flag -a
     int long_list = 0; //flag -l
 
+
 //verify directory and flags -a -l 
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "-a") == 0)
-            show_all = 1;
-        else if (strcmp(argv[i], "-l") == 0)
-            long_list = 1;
-        else
-            directory = argv[i];
+    if (strcmp(argv[i], "-a") == 0) {
+        show_all = 1;
+    } else if (strcmp(argv[i], "-l") == 0) {
+        long_list = 1;
+    } else { 
+        snprintf(directory, sizeof(directory), "%s/%s", cwd, argv[i]);  
     }
+}
 
     DIR *dir;  //pointer for a directory, like type FILE
     struct dirent *entry; //entry of a directory

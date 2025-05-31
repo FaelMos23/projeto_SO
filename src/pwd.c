@@ -1,14 +1,8 @@
 #include <stdio.h>
-#include <unistd.h>
+#include <stdlib.h>
 
 int main() {
-    char cwd[1024]; //store actual path string
-
-    if (getcwd(cwd, sizeof(cwd)) != NULL) {
-        printf("%s\n", cwd);
-        return 0;
-    } else {
-        printf("ERROR");
-        return 1;
-    }
+    const char* cwd = getenv("CWD"); //rescue env CWD
+    printf("%s\n", cwd);
+    return 0;
 }
