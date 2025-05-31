@@ -53,7 +53,12 @@ int main()
     int len = readlink("/proc/self/exe", temp_PATH, sizeof(temp_PATH)-1);
     temp_PATH[len] = '\0';
     strcat(env_var[4], dirname(temp_PATH));
-    strcat(env_var[4], "/comm"); // add ":/home/fael/shared/projeto_SO/bin/extras" at the end to be able to access the directory 'extras' 
+    strcat(env_var[4], "/comm");
+
+    strcat(env_var[4], ":");                // maybe delete this
+    strcat(env_var[4], temp_PATH);          // second path for
+    strcat(env_var[4], "/extras\0");        // final presentation
+    printf("%s\n", env_var[4]);
     
     // number of paths
     int path_dirs = 1;
@@ -87,13 +92,20 @@ int main()
             }
             else
             {
-                fgets(read_buffer, BUFFER_SHELL_SIZE, file);
+                if (fgets(read_buffer, BUFFER_SHELL_SIZE, file) != NULL) {
+                    
+                    char *nl = strchr(read_buffer, '\n');
+                    if (nl) *nl = '\0';
+                    
+                    char *cr = strchr(read_buffer, '\r');
+                    if (cr) *cr = '\0';
+                    
+                }
                 printf("%s\n", read_buffer); // print command that was asked
             }
         }
         else  // reads from terminal
             fgets(read_buffer, BUFFER_SHELL_SIZE, stdin);
-
 
         // check for lineskip
         if(read_buffer[0] != '\n')
@@ -130,9 +142,23 @@ int main()
             int proc_loop;
             for(proc_loop=0; proc_loop<num_procs; proc_loop++)
             {
+
                 if(!strcmp(procArray[proc_loop].command, "script"))
                 {
-                    file = fopen(procArray[proc_loop].args[1], "r");
+                    char filePath_script[BUFFER_SHELL_SIZE];
+                    if(procArray[proc_loop].args[1][0] == '/')
+                    {
+                        strcpy(filePath_script, procArray[proc_loop].args[1]);
+                    }
+                    else
+                    {
+                        // CWD
+                        strcpy(filePath_script, getEnv(env_var[3]));
+                        strcat(filePath_script, "/");
+                        strcat(filePath_script, procArray[proc_loop].args[1]);
+                    }
+
+                    file = fopen(filePath_script, "r");
 
                     if (!file) {
                         perror("error opening file");
@@ -206,16 +232,16 @@ int main()
 
                                             
                                             char filePath_output[BUFFER_SHELL_SIZE];
-                                            if(procArray[proc_loop].outputFilePath[0] == '.')
+                                            if(procArray[proc_loop].outputFilePath[0] == '/')
+                                            {
+                                                strcpy(filePath_output, procArray[proc_loop].command);
+                                            }
+                                            else
                                             {
                                                 // CWD
                                                 strcpy(filePath_output, getEnv(env_var[3]));
                                                 strcat(filePath_output, "/");
                                                 strcat(filePath_output, procArray[proc_loop].command);
-                                            }
-                                            else
-                                            {
-                                                strcpy(filePath_output, procArray[proc_loop].command);
                                             }
 
                                             
@@ -236,16 +262,16 @@ int main()
 
                                         // RUN THE EXECUTABLE AFTER REDIRECTING INPUT/OUTPUT
                                         char filePath_file[BUFFER_SHELL_SIZE];
-                                        if(procArray[proc_loop].command[0] == '.')
+                                        if(procArray[proc_loop].command[0] == '/')
+                                        {
+                                            strcpy(filePath_file, procArray[proc_loop].command);
+                                        }
+                                        else
                                         {
                                             // CWD
                                             strcpy(filePath_file, getEnv(env_var[3]));
                                             strcat(filePath_file, "/");
                                             strcat(filePath_file, procArray[proc_loop].command);
-                                        }
-                                        else
-                                        {
-                                            strcpy(filePath_file, procArray[proc_loop].command);
                                         }
 
                                         execv(filePath_file, procArray[proc_loop].args);
@@ -305,16 +331,16 @@ int main()
 
                                             
                                             char filePath_output[BUFFER_SHELL_SIZE];
-                                            if(procArray[proc_loop].outputFilePath[0] == '.')
+                                            if(procArray[proc_loop].outputFilePath[0] == '/')
+                                            {
+                                                strcpy(filePath_output, procArray[proc_loop].outputFilePath);
+                                            }
+                                            else
                                             {
                                                 // CWD
                                                 strcpy(filePath_output, getEnv(env_var[3]));
                                                 strcat(filePath_output, "/");
                                                 strcat(filePath_output, procArray[proc_loop].outputFilePath);
-                                            }
-                                            else
-                                            {
-                                                strcpy(filePath_output, procArray[proc_loop].outputFilePath);
                                             }
 
 
@@ -346,6 +372,7 @@ int main()
                                             strcpy(filePath, pathArray[path_loop]);
                                             strcat(filePath, "/");
                                             strcat(filePath, procArray[proc_loop].command);
+
 
                                             execve(filePath, procArray[proc_loop].args, envp);
                                         }
