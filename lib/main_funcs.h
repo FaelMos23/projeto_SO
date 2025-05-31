@@ -214,23 +214,5 @@ static inline char* getEnv(char* eVar)
     return currChar;
 }
 
-static inline void rel_or_abs_path(char** dst, char* src, char* CWD)
-{
-    // RELATIVE
-    if(src[0] == '.')
-    {
-        strcpy(*dst, getEnv(CWD));
-        strcat(*dst, "/");
-        strcat(*dst, src);
-    }
-    // ABSOLUTE
-    else
-    {
-        strcpy(*dst, src);
-    }
-
-    return;
-}
-
 
 #endif
