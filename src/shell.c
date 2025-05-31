@@ -53,7 +53,7 @@ int main()
     int len = readlink("/proc/self/exe", temp_PATH, sizeof(temp_PATH)-1);
     temp_PATH[len] = '\0';
     strcat(env_var[4], dirname(temp_PATH));
-    strcat(env_var[4], "/comm"); // add ":/home/fael/shared/projeto_SO/bin/extras" at the end to be able to access the directory 'extras' 
+    strcat(env_var[4], "/comm:/home/fael/shared/projeto_SO/bin/extras"); // maybe delete the second path for final presentation 
     
     // number of paths
     int path_dirs = 1;
@@ -87,13 +87,20 @@ int main()
             }
             else
             {
-                fgets(read_buffer, BUFFER_SHELL_SIZE, file);
+                if (fgets(read_buffer, BUFFER_SHELL_SIZE, file) != NULL) {
+                    
+                    char *nl = strchr(read_buffer, '\n');
+                    if (nl) *nl = '\0';
+                    
+                    char *cr = strchr(read_buffer, '\r');
+                    if (cr) *cr = '\0';
+                    
+                }
                 printf("%s\n", read_buffer); // print command that was asked
             }
         }
         else  // reads from terminal
             fgets(read_buffer, BUFFER_SHELL_SIZE, stdin);
-
 
         // check for lineskip
         if(read_buffer[0] != '\n')
@@ -130,9 +137,23 @@ int main()
             int proc_loop;
             for(proc_loop=0; proc_loop<num_procs; proc_loop++)
             {
+
                 if(!strcmp(procArray[proc_loop].command, "script"))
                 {
-                    file = fopen(procArray[proc_loop].args[1], "r");
+                    char filePath_script[BUFFER_SHELL_SIZE];
+                    if(procArray[proc_loop].args[1][0] == '.')
+                    {
+                        // CWD
+                        strcpy(filePath_script, getEnv(env_var[3]));
+                        strcat(filePath_script, "/");
+                        strcat(filePath_script, procArray[proc_loop].args[1]);
+                    }
+                    else
+                    {
+                        strcpy(filePath_script, procArray[proc_loop].args[1]);
+                    }
+
+                    file = fopen(filePath_script, "r");
 
                     if (!file) {
                         perror("error opening file");
@@ -346,6 +367,7 @@ int main()
                                             strcpy(filePath, pathArray[path_loop]);
                                             strcat(filePath, "/");
                                             strcat(filePath, procArray[proc_loop].command);
+
 
                                             execve(filePath, procArray[proc_loop].args, envp);
                                         }

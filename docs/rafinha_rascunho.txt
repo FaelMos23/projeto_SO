@@ -1,3 +1,8 @@
+LEGENDAS:
+-- Ignore essas linhas para o relatório
+/// Problemas ou resoluções 
+
+
 11/5
 Iniciando o projeto, a primeira coisa foi seguir um dos objetivos propostos do projeto:
 	Aprender como as shells criam novos processos filhos e conectam a entrada/saída (I/O) ao terminal.
@@ -24,25 +29,38 @@ Eu nunca tinha feito pipes que passavam de um processo executando cum arquivo pa
 /// RESOLUÇÃO
 Tem como direcionar as saidas e entradas dos pipes para o STDIN e STDOUT do programa sendo executado pelo processo filho, assim, para eles, fgets/scanf e printf, mas os valores dessas funções vai para ou vem dos pipes.
 
+
 22/5
 
-// pode ignorar boa parte do que falei hoje, vá para a interrupção abaixo
+-- pode ignorar boa parte do que falei hoje, vá para a interrupção abaixo
 
-O próximo passo é sair de uma shell equipada para lidar apenas caso a caso (estávamos verificando o comando pedido e abrindo o arquivo conectado àquele comando) e expandir para algo mais automático e escalonável(consegue rodar novos arquivos que se apropriam ao padrão, desde que estejam em uma pasta no PATH).
+--O próximo passo é sair de uma shell equipada para lidar apenas caso a caso (estávamos verificando o comando pedido e abrindo o arquivo conectado àquele comando) e
+--expandir para algo mais automático e escalonável(consegue rodar novos arquivos que se apropriam ao padrão, desde que estejam em uma pasta no PATH).
 
-rota:
-[conferir comunicação pai-filho] -> [criar sistema de flags para pedir variaveis de ambiente e utilizar resultados(variáveis ou terminal)] -> [verificar se comando pedido existe nas pastas PATH] -> [se existir, o comando deve acessar o executavel de mesmo nome]
+--rota:
+--[conferir comunicação pai-filho] -> [criar sistema de flags para pedir variaveis de ambiente e utilizar resultados(variáveis ou terminal)] -> [verificar se comando 
+--pedido existe nas pastas PATH] -> [se existir, o comando deve acessar o executavel de mesmo nome]
 
-- primeiro ato: [conferir comunicação pai-filho]
-/// PROBLEMA
-Quando passadas mais de uma informação para o filho, a segunda em diante não aparecia
+--- primeiro ato: [conferir comunicação pai-filho]
+--/// PROBLEMA
+--Quando passadas mais de uma informação para o filho, a segunda em diante não aparecia
 
-/// RESOLUÇÃO
-Como estamos usando fgets, o valor lido por buffer ignorava o último byte, que passava adiante e corrompia a informação do próximo elemento.
-Foi então instaurado que o tamanho do buffer da shell deve ser 255 e o tamanho do buffer dos comandos deve ser 256, para garantir os valores
+--/// RESOLUÇÃO
+--Como estamos usando fgets, o valor lido por buffer ignorava o último byte, que passava adiante e corrompia a informação do próximo elemento.
+--Foi então instaurado que o tamanho do buffer da shell deve ser 255 e o tamanho do buffer dos comandos deve ser 256, para garantir os valores
 
-- segundo ato: [criar sistema de flags para pedir variaveis de ambiente e utilizar resultados(variáveis ou terminal)]
+--- segundo ato: [criar sistema de flags para pedir variaveis de ambiente e utilizar resultados(variáveis ou terminal)]
 
 //// INTERRUPÇÃO
 Algumas das coisas que assumimos para o projeto estavam erradas.
 Comandos que modificam as variáveis de ambiente (cd e path) devem ser feitos built-in(sem arquivo próprio, rodam no shell.c), isso também permite uma maior liberdade de conexão com o terminal para os comandos, que será util na hora de redirecionar futuramente com '|' e '>'
+
+
+28/05-30/05
+
+Após reestruturação do funcionamento, consegui fazer algumas coisas nesses dias:
+
+- Múltiplos processos numa mesma linha
+-- pode testar essas linhas no shell para entender se quiser, vitor
+Exemplo geral: [comm1 arg1 arg2 | comm2 arg3 & comm3 arg4 arg5]
+Exemplo no shell

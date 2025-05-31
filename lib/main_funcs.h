@@ -142,7 +142,7 @@ static inline int getProcesses(proc_info** processArray, char* text, int* num_pi
     }
 
 
-    // result
+    // result of array of processes
     *processArray = procArray;
     
     free(tmp);
@@ -175,6 +175,7 @@ static inline void freeProcArr(proc_info* procArray, int num_procs)
     }
 
     free(procArray);
+    return;
 }
 
 // separates the path into an Array
@@ -211,6 +212,24 @@ static inline char* getEnv(char* eVar)
     while(*(currChar++) != '=');
 
     return currChar;
+}
+
+static inline void rel_or_abs_path(char** dst, char* src, char* CWD)
+{
+    // RELATIVE
+    if(src[0] == '.')
+    {
+        strcpy(*dst, getEnv(CWD));
+        strcat(*dst, "/");
+        strcat(*dst, src);
+    }
+    // ABSOLUTE
+    else
+    {
+        strcpy(*dst, src);
+    }
+
+    return;
 }
 
 
