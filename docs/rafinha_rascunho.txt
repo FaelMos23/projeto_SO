@@ -60,7 +60,94 @@ Comandos que modificam as variáveis de ambiente (cd e path) devem ser feitos bu
 
 Após reestruturação do funcionamento, consegui fazer algumas coisas nesses dias:
 
-- Múltiplos processos numa mesma linha
+/// PROBLEMA
+Como separar os processos e interpretar as informações de '&' (apenas outro processo), '|' (o processo à direita recebe como entrada padrão a saída padrão do processo à esquerda) e '>' (direciona a saída padrão do processo à esquerda no arquivo à direita)
+
+/// RESOLUÇÃO
+- A ideia foi determinar a estrutura para guardar informações dos processos:
+
+    STRUCT proc_info
+	STRING	      command
+	INT	      argc (argc nesse caso não conta o comando, diferentemente do argc normal)
+	ARRAY<STRING> args
+	STRING	      outputFilePath
+	INT	      flags
+
+    EXPLICAÇÃO FLAGS
+    3 BITS
+
+      > 0b100 significa OUTPUT EM PIPE PARA ARQUIVO         "comm_alvo arg1 arg2 > arquivo.extensao"
+
+      > 0b010 significa INPUT EM PIPE DE OUTRO PROCESSO     "outro_comm arg1 | comm_alvo arg1 arg2"
+
+      > 0b001 significa OUTPUT EM PIPE PARA OUTRO PROCESSO  "comm_alvo arg1 arg2 | outro_comm arg1"
+
+      > Possiveis interacoes
+        000 - NORMAL
+        001 - OUT PROC
+        010 - IN  PROC
+        011 - IN  PROC, OUT PROC
+        100 - OUT ARQV
+        110 - IN  PROC, OUT ARQV
+	101 e 111 são impossíveis, não dá pra escrever a saída em um arquivo e enviar esses resultados para outro processo ao mesmo tempo
+
+- Múltiplos processos numa mesma linha, com direcionamento de IN/OUT por pipes
 -- pode testar essas linhas no shell para entender se quiser, vitor
-Exemplo geral: [comm1 arg1 arg2 | comm2 arg3 & comm3 arg4 arg5]
-Exemplo no shell
+Exemplo geral:    [comm1 arg1 arg2 | comm2 arg3 & comm3 arg4 arg5 arg6 > file.extension]
+Exemplo no shell: [sum 4 5 6 | pretty > resultado.txt & sum 23 32]
+
+A função "getProcesses" recebe a linha inteira e conta quantos preocessos tem nela (1 + num. de '&' e '|')
+Após isso, ela separa cada processo e armazena as informações.
+
+
+	Ex.: [comm1 arg1 arg2 | comm2 arg3 & comm3 arg4 arg5 arg6 > file.extension]
+	    processo 1:
+		command = comm1
+		argc = 2
+		args = [0] = arg1,
+		       [1] = arg2
+		outputFilePath = NULL
+		flags = 0b001
+
+	    processo 2:
+		command = comm2
+		argc = 1
+		args = [0] = arg3
+		outputFilePath = NULL
+		flags = 0b010
+
+	    processo 3:
+		command = comm3
+		argc = 2
+		args = [0] = arg4,
+		       [1] = arg5,
+		       [2] = arg6
+		outputFilePath = "file.extension"
+		flags = 0b100
+
+
+No final dessa iteração do loop, as informações na lista de processos são liberadas.
+
+Depois é criado um loop que cria e roda cada um dos elementos adquiridos acima em um novo fork.
+
+- Múltiplos paths
+
+A ideia foi parecida com a partição acima de processos.
+Exemplo de PATH: "PATH=/home/fael/shared/projeto_SO/bin/comm:/home/fael/shared/projeto_SO/bin/extras"
+
+    path1 :
+	"/home/fael/shared/projeto_SO/bin/comm"
+    path 2:
+	"/home/fael/shared/projeto_SO/bin/extras"
+
+Ao tentar rodar um comando que não seja built-in (path, cd, exit, script), o programa procura nas pastas acima os arquivos executáveis cujo nome seja igual ao comando executado.
+
+- Lendo de arquivo batch
+Além de aceitar comandos do terminal, é possível rodar "script /path/to/script" para ter uma sequência de comandos a serem executados, estes escritos em um arquivo.
+
+/// PROBLEMA
+Como incorporar os vários arquivos (de quantidade indefinida) no loop de comandos
+
+/// RESOLUÇÃO 
+Há duas partes que incorporam o comando 'script' no código, a primeira é a que percebe que o comando script foi selecionado, pega o processo[n].args[1], interpreta como arquivo (pode ser relativo a partir do CWD), abre este arquivo, ativa uma flag "readScript" e parte para a próxima iteração do loop.
+A segunda parte lê os comandos a partir do arquivo em vez de ler do terminal (só é ativado quando readScript==1) e o resto do código trata as informações de processo de forma igual a se fossem comandos vindos do terminal. Quando recebe um EOF (end of file), o código fecha o arquivo e passa a ler do terminal de novo.

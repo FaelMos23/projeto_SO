@@ -53,7 +53,12 @@ int main()
     int len = readlink("/proc/self/exe", temp_PATH, sizeof(temp_PATH)-1);
     temp_PATH[len] = '\0';
     strcat(env_var[4], dirname(temp_PATH));
-    strcat(env_var[4], "/comm:/home/fael/shared/projeto_SO/bin/extras"); // maybe delete the second path for final presentation 
+    strcat(env_var[4], "/comm");
+
+    strcat(env_var[4], ":");                // maybe delete this
+    strcat(env_var[4], temp_PATH);          // second path for
+    strcat(env_var[4], "/extras\0");        // final presentation
+    printf("%s\n", env_var[4]);
     
     // number of paths
     int path_dirs = 1;
@@ -141,16 +146,16 @@ int main()
                 if(!strcmp(procArray[proc_loop].command, "script"))
                 {
                     char filePath_script[BUFFER_SHELL_SIZE];
-                    if(procArray[proc_loop].args[1][0] == '.')
+                    if(procArray[proc_loop].args[1][0] == '/')
+                    {
+                        strcpy(filePath_script, procArray[proc_loop].args[1]);
+                    }
+                    else
                     {
                         // CWD
                         strcpy(filePath_script, getEnv(env_var[3]));
                         strcat(filePath_script, "/");
                         strcat(filePath_script, procArray[proc_loop].args[1]);
-                    }
-                    else
-                    {
-                        strcpy(filePath_script, procArray[proc_loop].args[1]);
                     }
 
                     file = fopen(filePath_script, "r");
@@ -227,16 +232,16 @@ int main()
 
                                             
                                             char filePath_output[BUFFER_SHELL_SIZE];
-                                            if(procArray[proc_loop].outputFilePath[0] == '.')
+                                            if(procArray[proc_loop].outputFilePath[0] == '/')
+                                            {
+                                                strcpy(filePath_output, procArray[proc_loop].command);
+                                            }
+                                            else
                                             {
                                                 // CWD
                                                 strcpy(filePath_output, getEnv(env_var[3]));
                                                 strcat(filePath_output, "/");
                                                 strcat(filePath_output, procArray[proc_loop].command);
-                                            }
-                                            else
-                                            {
-                                                strcpy(filePath_output, procArray[proc_loop].command);
                                             }
 
                                             
@@ -257,16 +262,16 @@ int main()
 
                                         // RUN THE EXECUTABLE AFTER REDIRECTING INPUT/OUTPUT
                                         char filePath_file[BUFFER_SHELL_SIZE];
-                                        if(procArray[proc_loop].command[0] == '.')
+                                        if(procArray[proc_loop].command[0] == '/')
+                                        {
+                                            strcpy(filePath_file, procArray[proc_loop].command);
+                                        }
+                                        else
                                         {
                                             // CWD
                                             strcpy(filePath_file, getEnv(env_var[3]));
                                             strcat(filePath_file, "/");
                                             strcat(filePath_file, procArray[proc_loop].command);
-                                        }
-                                        else
-                                        {
-                                            strcpy(filePath_file, procArray[proc_loop].command);
                                         }
 
                                         execv(filePath_file, procArray[proc_loop].args);
@@ -326,16 +331,16 @@ int main()
 
                                             
                                             char filePath_output[BUFFER_SHELL_SIZE];
-                                            if(procArray[proc_loop].outputFilePath[0] == '.')
+                                            if(procArray[proc_loop].outputFilePath[0] == '/')
+                                            {
+                                                strcpy(filePath_output, procArray[proc_loop].outputFilePath);
+                                            }
+                                            else
                                             {
                                                 // CWD
                                                 strcpy(filePath_output, getEnv(env_var[3]));
                                                 strcat(filePath_output, "/");
                                                 strcat(filePath_output, procArray[proc_loop].outputFilePath);
-                                            }
-                                            else
-                                            {
-                                                strcpy(filePath_output, procArray[proc_loop].outputFilePath);
                                             }
 
 
