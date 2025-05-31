@@ -21,7 +21,7 @@ int main()
 
     // initializes enviroment variables
     struct passwd* pw = getpwuid(geteuid());
-    
+
     if (pw == NULL) {
         perror("getpwuid");
         return 1;
@@ -77,7 +77,6 @@ int main()
     while(can_run)
     {
         printf("\n%s%s@%s: %s%s%s\n> ", GREEN, getEnv(env_var[0]), getEnv(env_var[1]), BLUE, getEnv(env_var[3]), RESET);
-
 
         // reads from script
         if(readScript)
