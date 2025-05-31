@@ -58,18 +58,16 @@ int main()
     strcat(env_var[4], ":");                // maybe delete this
     strcat(env_var[4], temp_PATH);          // second path for
     strcat(env_var[4], "/extras\0");        // final presentation
-    printf("%s\n", env_var[4]);
     
     // number of paths
-    int path_dirs = 1;
+    //int path_dirs = 1; // to usando isso?
     
     // defining values
     int can_run = 1;
     char read_buffer[BUFFER_SHELL_SIZE];
-    char child_buffer[BUFFER_SHELL_SIZE];
 
     // pipes initialization
-    int verify;
+    //int verify; delete?
 
     // script interaction
     FILE* file = NULL;
@@ -84,24 +82,26 @@ int main()
         // reads from script
         if(readScript)
         {
-            if(feof(file))
+            if (readScript)
             {
-                readScript = 0;
-                fclose(file);
-                fgets(read_buffer, BUFFER_SHELL_SIZE, stdin);
-            }
-            else
-            {
-                if (fgets(read_buffer, BUFFER_SHELL_SIZE, file) != NULL) {
+                if (fgets(read_buffer, BUFFER_SHELL_SIZE, file) == NULL) {
+                    readScript = 0;
+                    fclose(file);
                     
-                    char *nl = strchr(read_buffer, '\n');
-                    if (nl) *nl = '\0';
-                    
-                    char *cr = strchr(read_buffer, '\r');
-                    if (cr) *cr = '\0';
-                    
+                    // continue as normal
+                    fgets(read_buffer, BUFFER_SHELL_SIZE, stdin);
                 }
-                printf("%s\n", read_buffer); // print command that was asked
+                else
+                {
+                    read_buffer[strcspn(read_buffer, "\r\n")] = '\0';
+
+                    if (!strcmp(read_buffer, "")) strcpy(read_buffer, "\n");
+
+                    printf("%s\n", read_buffer);
+                }
+
+            } else {
+                fgets(read_buffer, BUFFER_SHELL_SIZE, stdin);
             }
         }
         else  // reads from terminal
@@ -162,7 +162,7 @@ int main()
 
                     if (!file) {
                         perror("error opening file");
-                        return 1;
+                        continue;
                     }
 
                     readScript = 1;
