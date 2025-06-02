@@ -21,7 +21,7 @@ int main()
 
     // initializes enviroment variables
     struct passwd* pw = getpwuid(geteuid());
-
+    
     if (pw == NULL) {
         perror("getpwuid");
         return 1;
@@ -176,7 +176,77 @@ int main()
                         // cd?
                         if(!strcmp(procArray[proc_loop].command, "cd"))
                         {
-                            // inserir código de "cd"
+                            // STEP 1:
+                            // first: make a verification if "/" is absolute (cd /pasta) or relative (cd pasta || cd ./pasta)
+                                // if relative, add in CWD the argument (can to be:
+                                //                                          my path is: home/aluno/projeto_SO/bin
+                                //                                          I need to concat with the argument pasta or /pasta or ./pasta
+                                //                                          so the final path is: home/aluno/projeto_SO/bin/pasta or home/aluno/projeto_SO/bin/./pasta)
+
+                            // new string to hold the file path
+                            char temp[BUFFER_SHELL_SIZE] = "";
+                            char finalPath[BUFFER_SHELL_SIZE] = "";
+                            char newPath[BUFFER_SHELL_SIZE] = "";
+
+                            if(procArray[proc_loop].argc > 0){
+                                // verification of the interaction with cd (ignore the first "/" or "./" the string)
+                                // printf("args[0]: %s, args[1]: %s\n", procArray[proc_loop].args[0], procArray[proc_loop].args[1]);
+                                if(procArray[proc_loop].args[1][0] == '/')
+                                {
+                                    // absolute path
+                                    strcpy(temp, procArray[proc_loop].args[1]);
+                                }
+                                else
+                                { // relative path
+                                    strcpy(temp, getEnv(env_var[3]));
+                                    strcat(temp, "/");
+                                    strcat(temp, procArray[proc_loop].args[1]);
+                                }
+                                printf("Variable temp: %s\n", temp);
+                            }else{
+                                // cd NULL return at HOME
+                                strcpy(newPath, getEnv(env_var[2])); // copy HOME
+                            }
+                            // STEP 2:
+                            // normalize the path
+                            // verific if there are ".." to go back to last directory
+                            // or "." (ignore)
+                            // or just a directory name (add to variable finalPath)
+                            // in the final step, we needs to verify if the finalPath exist
+                            char* token = strtok(temp, "/");
+
+                            while(token != NULL)
+                            {
+                                if(strcmp(token, "..") == 0)
+                                {
+                                    // remove the last directory from CWD
+                                    char* last_slash = strrchr(finalPath, '/');
+                                    if (last_slash != NULL && last_slash != temp) {
+                                        *last_slash = '\0'; // remove the last directory
+                                    } else {
+                                        // path raiz
+                                        strcpy(finalPath, "/");
+                                    }
+                                }
+                                else if(strcmp(token, ".") == 0)
+                                {
+                                    // ignore
+                                }
+                                else
+                                {
+                                    // add the directory to CWD                                        if(strcmp(newPath, "/") != 0)
+                                    if (strlen(finalPath) > 0) {
+                                        strcat(finalPath, "/");
+                                    }
+                                    strcat(finalPath, token);
+                                }
+                                token = strtok(NULL, "/");
+                            }
+                            printf("Variable finalPath: %s\n", finalPath);
+                            // update newPath
+                            strcpy(newPath, "/");
+                            strcat(newPath, finalPath);
+                            printf("Variable newPath: %s\n", newPath);
                         }
                         else
                         {
