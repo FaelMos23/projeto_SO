@@ -83,3 +83,9 @@ correto igual a "/home/aluno/projeto_SO/lib". Fazemos as seguintes verificaçõe
 		LOOP 9: NULL -> sai antes de realizar o loop pq chega no token = NULL
 Ao final, é adicionado "/" na var newPath e concatenado o conteúdo da variável finalPath. Então o 
 resultado do diretório que deverá ser verificado para atualizar CWD é newPath = "/home/aluno/projeto_SO/lib".
+
+02/06
+
+Diretório verificado com a função *DIR dir = opendir(newPath). Aqui ele tenta abrir o diretório, se ele 
+conseguir, a condição do if é verdadeira, com isso arquivo é fechado, o CWD é limpado ('\0') e depois concatenado com o novo caminho.
+Caso contrário ele printa mensagem que não foi possível encontrar o caminho.

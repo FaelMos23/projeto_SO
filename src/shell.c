@@ -1,5 +1,6 @@
 #include <fcntl.h>              /* Definition of O_* constants */
 #include <unistd.h>
+#include <dirent.h>             // to check a directory
 #include <sys/wait.h>
 #include <libgen.h>             // to get path to executable shell file
 #include <pwd.h>                // environmental variables (frompasswd)
@@ -12,6 +13,7 @@
 const char* RESET = "\033[0m";
 const char* GREEN = "\033[32m";
 const char* BLUE =  "\033[34m";
+const char* RED = "\033[31m";
 
 
 int main()
@@ -188,7 +190,7 @@ int main()
                             char finalPath[BUFFER_SHELL_SIZE] = "";
                             char newPath[BUFFER_SHELL_SIZE] = "";
 
-                            if(procArray[proc_loop].argc > 0){
+                            if(procArray[proc_loop].argc > 1){
                                 // verification of the interaction with cd (ignore the first "/" or "./" the string)
                                 // printf("args[0]: %s, args[1]: %s\n", procArray[proc_loop].args[0], procArray[proc_loop].args[1]);
                                 if(procArray[proc_loop].args[1][0] == '/')
@@ -202,51 +204,64 @@ int main()
                                     strcat(temp, "/");
                                     strcat(temp, procArray[proc_loop].args[1]);
                                 }
-                                printf("Variable temp: %s\n", temp);
+                                // printf("Variable temp: %s\n", temp);
+
+                                // STEP 2:
+                                // normalize the path
+                                // verific if there are ".." to go back to last directory
+                                // or "." (ignore)
+                                // or just a directory name (add to variable finalPath)
+                                // in the final step, we needs to verify if the finalPath exist
+                                char* token = strtok(temp, "/");
+
+                                while(token != NULL)
+                                {
+                                    if(strcmp(token, "..") == 0)
+                                    {
+                                        // remove the last directory from CWD
+                                        char* last_slash = strrchr(finalPath, '/');
+                                        if (last_slash != NULL && last_slash != temp) {
+                                            *last_slash = '\0'; // remove the last directory
+                                        }
+                                    }
+                                    else if(strcmp(token, ".") == 0)
+                                    {
+                                        // ignore
+                                    }
+                                    else
+                                    {
+                                        // add the directory to CWD                                        if(strcmp(newPath, "/") != 0)
+                                        if (strlen(finalPath) > 0) {
+                                            strcat(finalPath, "/");
+                                        }
+                                        strcat(finalPath, token);
+                                    }
+                                    token = strtok(NULL, "/");
+                                }
+                                // printf("Variable finalPath: %s\n", finalPath);
+                                // update newPath
+                                strcpy(newPath, "/");
+                                strcat(newPath, finalPath);
+                                // printf("Variable newPath: %s\n", newPath);
+
+                                // verific if exist this path
+                                DIR* dir = opendir(newPath);
+                                if (dir) {
+                                    // The dir open, so it exist
+                                    closedir(dir);
+
+                                    env_var[3][0+4] = '\0'; // clear CWD
+                                    strcat(env_var[3], newPath); // Update CWD
+                                    
+                                    // printf("%s\n", env_var[3]);
+                                }else{
+                                    printf("%scd: Cannot find the path '%s' because it does not exist.%s\n", RED, newPath, RESET);
+                                }
                             }else{
                                 // cd NULL return at HOME
-                                strcpy(newPath, getEnv(env_var[2])); // copy HOME
+                                env_var[3][0+4] = '\0'; // clear CWD
+                                strcat(env_var[3], getEnv(env_var[2])); // copy HOME
                             }
-                            // STEP 2:
-                            // normalize the path
-                            // verific if there are ".." to go back to last directory
-                            // or "." (ignore)
-                            // or just a directory name (add to variable finalPath)
-                            // in the final step, we needs to verify if the finalPath exist
-                            char* token = strtok(temp, "/");
-
-                            while(token != NULL)
-                            {
-                                if(strcmp(token, "..") == 0)
-                                {
-                                    // remove the last directory from CWD
-                                    char* last_slash = strrchr(finalPath, '/');
-                                    if (last_slash != NULL && last_slash != temp) {
-                                        *last_slash = '\0'; // remove the last directory
-                                    } else {
-                                        // path raiz
-                                        strcpy(finalPath, "/");
-                                    }
-                                }
-                                else if(strcmp(token, ".") == 0)
-                                {
-                                    // ignore
-                                }
-                                else
-                                {
-                                    // add the directory to CWD                                        if(strcmp(newPath, "/") != 0)
-                                    if (strlen(finalPath) > 0) {
-                                        strcat(finalPath, "/");
-                                    }
-                                    strcat(finalPath, token);
-                                }
-                                token = strtok(NULL, "/");
-                            }
-                            printf("Variable finalPath: %s\n", finalPath);
-                            // update newPath
-                            strcpy(newPath, "/");
-                            strcat(newPath, finalPath);
-                            printf("Variable newPath: %s\n", newPath);
                         }
                         else
                         {
