@@ -40,6 +40,19 @@ typedef struct Process_info{
         110 - IN PROC, OUT FILE
 */
 
+// boolean for testing if line is an executable
+static inline int isExec(char* line)
+{
+    int i;
+
+    for(i=0; line[i]==' ';i++){}
+
+    if(line[i] == '.' || line[i] == '/')
+        return 1;
+
+    return 0;
+}
+
 // returns number of processes found
 static inline int getProcesses(proc_info** processArray, char* text, int* num_pipes)
 {
@@ -118,7 +131,8 @@ static inline int getProcesses(proc_info** processArray, char* text, int* num_pi
 
         // solves error with comm1 arg1 > file.txt & comm2 arg2
         // for when there is a process after a file redirection
-        if(tok[0] == '.' || tok[0] == '/')
+        // EDIT: this actually broke executable running, so I added '!isExec(text) &&'
+        if(!isExec(text) && (tok[0] == '.' || tok[0] == '/'))
         {
             tok = strtok_r(NULL, " \n", &storeTok);
             tok = strtok_r(NULL, " \n", &storeTok);
@@ -212,6 +226,18 @@ static inline char* getEnv(char* eVar)
     while(*(currChar++) != '=');
 
     return currChar;
+}
+
+static inline int skip(char* line)
+{
+    int i;
+
+    for(i=0; line[i]==' ';i++){}
+
+    if(line[i] != '\n')
+        return 1;
+
+    return 0;
 }
 
 
