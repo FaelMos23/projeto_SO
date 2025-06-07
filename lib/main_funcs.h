@@ -215,12 +215,13 @@ static inline char* getEnv(char* eVar)
     return currChar;
 }
 
-static inline bool checkDir(char dir){
-    DIR* dir = opendir(dir);
-    if (dir) {
-        return true;
+static inline int checkDir(char* dir){
+    DIR* d = opendir(dir);
+    if (d) {
+        closedir(d);  // memory leak if not closed
+        return 1;
     }
-    return false;
+    return 0;
 }
 
 

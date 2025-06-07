@@ -57,10 +57,6 @@ int main()
     strcat(env_var[4], dirname(temp_PATH));
     strcat(env_var[4], "/comm");
 
-    strcat(env_var[4], ":");                // maybe delete this
-    strcat(env_var[4], temp_PATH);          // second path for
-    strcat(env_var[4], "/extras\0");        // final presentation
-
     // number of paths
     //int path_dirs = 1; // to usando isso?
 
@@ -290,7 +286,7 @@ int main()
                                     strcpy(temp, env_var[4]);
 
                                     char* token = strtok(temp, "=");
-                                    printf("\nCurrent PATHS:");
+                                    printf("\nCurrent PATHS:\n");
                                     while(token != NULL){
                                         if (strcmp(token, "PATH") == 0){
                                             // Ignore token
