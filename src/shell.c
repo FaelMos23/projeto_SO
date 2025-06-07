@@ -1,5 +1,6 @@
 #include <fcntl.h>              /* Definition of O_* constants */
 #include <unistd.h>
+#include <dirent.h>             // to check a directory
 #include <sys/wait.h>
 #include <libgen.h>             // to get path to executable shell file
 #include <pwd.h>                // environmental variables (frompasswd)
@@ -12,6 +13,7 @@
 const char* RESET = "\033[0m";
 const char* GREEN = "\033[32m";
 const char* BLUE =  "\033[34m";
+const char* RED = "\033[31m";
 
 
 int main()
@@ -53,18 +55,15 @@ int main()
     int len = readlink("/proc/self/exe", temp_PATH, sizeof(temp_PATH)-1);
     temp_PATH[len] = '\0';
     strcat(env_var[4], dirname(temp_PATH));
-    strcat(env_var[4], "/comm"); // add ":/home/fael/shared/projeto_SO/bin/extras" at the end to be able to access the directory 'extras' 
-    
-    // number of paths
-    int path_dirs = 1;
+    strcat(env_var[4], "/comm");
+
+    strcat(env_var[4], ":");                // maybe DELETE this
+    strcat(env_var[4], temp_PATH);          // second path for
+    strcat(env_var[4], "/extras\0");        // final presentation
     
     // defining values
     int can_run = 1;
     char read_buffer[BUFFER_SHELL_SIZE];
-    char child_buffer[BUFFER_SHELL_SIZE];
-
-    // pipes initialization
-    int verify;
 
     // script interaction
     FILE* file = NULL;
@@ -75,35 +74,40 @@ int main()
     {
         printf("\n%s%s@%s: %s%s%s\n> ", GREEN, getEnv(env_var[0]), getEnv(env_var[1]), BLUE, getEnv(env_var[3]), RESET);
 
-
         // reads from script
         if(readScript)
         {
-            if(feof(file))
-            {
+            if (fgets(read_buffer, BUFFER_SHELL_SIZE, file) == NULL) {
                 readScript = 0;
                 fclose(file);
+                
+                // continue as normal
                 fgets(read_buffer, BUFFER_SHELL_SIZE, stdin);
             }
             else
             {
-                fgets(read_buffer, BUFFER_SHELL_SIZE, file);
-                printf("%s\n", read_buffer); // print command that was asked
+                read_buffer[strcspn(read_buffer, "\r\n")] = '\0';
+
+                //if (!strcmp(read_buffer, "")) strcpy(read_buffer, "\n");
+                strcat(read_buffer, "\n");
+
+                printf("%s\n", read_buffer);
             }
         }
         else  // reads from terminal
+        {
             fgets(read_buffer, BUFFER_SHELL_SIZE, stdin);
+        }
 
 
         // check for lineskip
-        if(read_buffer[0] != '\n')
+        if(skip(read_buffer))
         {
             // array that contains the information for each flag
             proc_info* procArray;
             int num_pipes = 0;
             int currPipe = 0;
         
-            
             int num_procs = getProcesses(&procArray, read_buffer, &num_pipes);
 
             // prepare pipes
@@ -130,13 +134,27 @@ int main()
             int proc_loop;
             for(proc_loop=0; proc_loop<num_procs; proc_loop++)
             {
+
                 if(!strcmp(procArray[proc_loop].command, "script"))
                 {
-                    file = fopen(procArray[proc_loop].args[1], "r");
+                    char filePath_script[BUFFER_SHELL_SIZE];
+                    if(procArray[proc_loop].args[1][0] == '/')
+                    {
+                        strcpy(filePath_script, procArray[proc_loop].args[1]);
+                    }
+                    else
+                    {
+                        // CWD
+                        strcpy(filePath_script, getEnv(env_var[3]));
+                        strcat(filePath_script, "/");
+                        strcat(filePath_script, procArray[proc_loop].args[1]);
+                    }
+
+                    file = fopen(filePath_script, "r");
 
                     if (!file) {
                         perror("error opening file");
-                        return 1;
+                        continue;
                     }
 
                     readScript = 1;
@@ -151,19 +169,102 @@ int main()
                         // cd?
                         if(!strcmp(procArray[proc_loop].command, "cd"))
                         {
-                            // inserir código de "cd"
+                            // STEP 1:
+                            // first: make a verification if "/" is absolute (cd /pasta) or relative (cd pasta || cd ./pasta)
+                                // if relative, add in CWD the argument (can to be:
+                                //                                          my path is: home/aluno/projeto_SO/bin
+                                //                                          I need to concat with the argument pasta or /pasta or ./pasta
+                                //                                          so the final path is: home/aluno/projeto_SO/bin/pasta or home/aluno/projeto_SO/bin/./pasta)
+
+                            // new string to hold the file path
+                            char temp[BUFFER_SHELL_SIZE] = "";
+                            char finalPath[BUFFER_SHELL_SIZE] = "";
+                            char newPath[BUFFER_SHELL_SIZE] = "";
+
+                            if(procArray[proc_loop].argc > 1){
+                                // verification of the interaction with cd (ignore the first "/" or "./" the string)
+                                // printf("args[0]: %s, args[1]: %s\n", procArray[proc_loop].args[0], procArray[proc_loop].args[1]);
+                                if(procArray[proc_loop].args[1][0] == '/')
+                                {
+                                    // absolute path
+                                    strcpy(temp, procArray[proc_loop].args[1]);
+                                }
+                                else
+                                { // relative path
+                                    strcpy(temp, getEnv(env_var[3]));
+                                    strcat(temp, "/");
+                                    strcat(temp, procArray[proc_loop].args[1]);
+                                }
+                                // printf("Variable temp: %s\n", temp);
+
+                                // STEP 2:
+                                // normalize the path
+                                // verific if there are ".." to go back to last directory
+                                // or "." (ignore)
+                                // or just a directory name (add to variable finalPath)
+                                // in the final step, we needs to verify if the finalPath exist
+                                char* token = strtok(temp, "/");
+
+                                while(token != NULL)
+                                {
+                                    if(strcmp(token, "..") == 0)
+                                    {
+                                        // remove the last directory from CWD
+                                        char* last_slash = strrchr(finalPath, '/');
+                                        if (last_slash != NULL && last_slash != temp) {
+                                            *last_slash = '\0'; // remove the last directory
+                                        }
+                                    }
+                                    else if(strcmp(token, ".") == 0)
+                                    {
+                                        // ignore
+                                    }
+                                    else
+                                    {
+                                        // add the directory to CWD                                        if(strcmp(newPath, "/") != 0)
+                                        if (strlen(finalPath) > 0) {
+                                            strcat(finalPath, "/");
+                                        }
+                                        strcat(finalPath, token);
+                                    }
+                                    token = strtok(NULL, "/");
+                                }
+                                // printf("Variable finalPath: %s\n", finalPath);
+                                // update newPath
+                                strcpy(newPath, "/");
+                                strcat(newPath, finalPath);
+                                // printf("Variable newPath: %s\n", newPath);
+
+                                // verific if exist this path
+                                DIR* dir = opendir(newPath);
+                                if (dir) {
+                                    // The dir open, so it exist
+                                    closedir(dir);
+
+                                    env_var[3][0+4] = '\0'; // clear CWD
+                                    strcat(env_var[3], newPath); // Update CWD
+                                    
+                                    // printf("%s\n", env_var[3]);
+                                }else{
+                                    printf("%scd: Cannot find the path '%s' because it does not exist.%s\n", RED, newPath, RESET);
+                                }
+                            }else{
+                                // cd NULL return at HOME
+                                env_var[3][0+4] = '\0'; // clear CWD
+                                strcat(env_var[3], getEnv(env_var[2])); // copy HOME
+                            }
                         }
                         else
                         {
                             // path?
                             if(!strcmp(procArray[proc_loop].command, "path"))
                             {
-                                // inserir código de "path"
+                                // inserir codigo de "path"
                             }
                             else
                             {
                                 // executable?
-                                if(procArray[proc_loop].command[0] == '.' || procArray[proc_loop].command[0] == '/')
+                                if(isExec(procArray[proc_loop].command))
                                 {
                                     pid[proc_loop] = fork();
                                     if(pid[proc_loop] < 0)
@@ -206,16 +307,16 @@ int main()
 
                                             
                                             char filePath_output[BUFFER_SHELL_SIZE];
-                                            if(procArray[proc_loop].outputFilePath[0] == '.')
+                                            if(procArray[proc_loop].outputFilePath[0] == '/')
+                                            {
+                                                strcpy(filePath_output, procArray[proc_loop].command);
+                                            }
+                                            else
                                             {
                                                 // CWD
                                                 strcpy(filePath_output, getEnv(env_var[3]));
                                                 strcat(filePath_output, "/");
                                                 strcat(filePath_output, procArray[proc_loop].command);
-                                            }
-                                            else
-                                            {
-                                                strcpy(filePath_output, procArray[proc_loop].command);
                                             }
 
                                             
@@ -236,25 +337,25 @@ int main()
 
                                         // RUN THE EXECUTABLE AFTER REDIRECTING INPUT/OUTPUT
                                         char filePath_file[BUFFER_SHELL_SIZE];
-                                        if(procArray[proc_loop].command[0] == '.')
+                                        if(procArray[proc_loop].command[0] == '/')
+                                        {
+                                            strcpy(filePath_file, procArray[proc_loop].command);
+                                        }
+                                        else
                                         {
                                             // CWD
                                             strcpy(filePath_file, getEnv(env_var[3]));
                                             strcat(filePath_file, "/");
                                             strcat(filePath_file, procArray[proc_loop].command);
                                         }
-                                        else
-                                        {
-                                            strcpy(filePath_file, procArray[proc_loop].command);
-                                        }
 
                                         execv(filePath_file, procArray[proc_loop].args);
 
                                         // error handling
-                                        char error_text[BUFFER_SHELL_SIZE];
-                                        strcpy(error_text, "Fail to run executable ");
-                                        strcat(error_text, procArray[proc_loop].command);
-                                        perror(error_text);
+                                        char error_exec_run[64];
+                                        snprintf(error_exec_run, 64, "%sFail to run executable%s ", RED, RESET);
+                                        strcat(error_exec_run, procArray[proc_loop].command);
+                                        perror(error_exec_run);
                                         _exit(2);
                                     }
                                 }
@@ -305,16 +406,16 @@ int main()
 
                                             
                                             char filePath_output[BUFFER_SHELL_SIZE];
-                                            if(procArray[proc_loop].outputFilePath[0] == '.')
+                                            if(procArray[proc_loop].outputFilePath[0] == '/')
+                                            {
+                                                strcpy(filePath_output, procArray[proc_loop].outputFilePath);
+                                            }
+                                            else
                                             {
                                                 // CWD
                                                 strcpy(filePath_output, getEnv(env_var[3]));
                                                 strcat(filePath_output, "/");
                                                 strcat(filePath_output, procArray[proc_loop].outputFilePath);
-                                            }
-                                            else
-                                            {
-                                                strcpy(filePath_output, procArray[proc_loop].outputFilePath);
                                             }
 
 
@@ -347,13 +448,14 @@ int main()
                                             strcat(filePath, "/");
                                             strcat(filePath, procArray[proc_loop].command);
 
+
                                             execve(filePath, procArray[proc_loop].args, envp);
                                         }
                                         // error handling, none of the paths worked
-                                        char error_text[BUFFER_SHELL_SIZE];
-                                        strcpy(error_text, "Fail to run command ");
-                                        strcat(error_text, procArray[proc_loop].command);
-                                        perror(error_text);
+                                        char error_comm_run[64];
+                                        snprintf(error_comm_run, 64, "%sFail to run command:%s ", RED, RESET);
+                                        strcat(error_comm_run, procArray[proc_loop].command);
+                                        perror(error_comm_run);
                                         _exit(2);
 
                                     }

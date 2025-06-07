@@ -9,6 +9,9 @@
 #include "../lib/ls_funcs.h"
 
 int main(int argc, char *argv[]) {
+    const char* RESET = "\033[0m";
+    const char* RED = "\033[31m";
+
     char directory[256];
     const char *cwd = getenv("CWD"); // current directory
     snprintf(directory, sizeof(directory), "%s", cwd);
@@ -23,7 +26,7 @@ int main(int argc, char *argv[]) {
     } else if (strcmp(argv[i], "-l") == 0) {
         long_list = 1;
     } else if (argv[i][0] == '-') {
-        fprintf(stderr, "Erro: opção inválida '%s'\n", argv[i]);
+        printf("%sls: invalid option '%s'%s\n", RED, argv[i], RESET);
         return 1;
     } else {
         snprintf(directory, sizeof(directory), "%s/%s", cwd, argv[i]);

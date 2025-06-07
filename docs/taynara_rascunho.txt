@@ -1,0 +1,91 @@
+o cd.c é uma programa distinto com sua main (eu acho) que recebe o path home e a localização do
+diretório atual através pipe (ele está comunicando com o processo pai, que é o shell.c) e como
+parâmetro char agv0 (comando que nesse caso é cd, o que não faz diferença) e char agv1 (sendo
+o argumento que modificará o arquivo ou melhor, o diretório atual. Para isso ele precisa fazer 
+uma verificação, se ele existe, precisamos verificar. Se ele começa com "/" ele não é um 
+caminho relativo, mas sim absoluto. Sabendo disso vamos concatenar o que está escrito no 
+comando arv1 com o caminho atual passado no pipe e verificar se ele existe. Se ele existir, 
+vamos modificar o diretório ou retorna o novo diretório atual (não sei como faz isso através de
+pipe), se não tiver nenhum argumento, retorna como novo diretória atual a path home que foi 
+passada pelo pipe).
+
+Tive dificuldades para entender o funcionamento do comando cd. Não estava entendendo que o 
+arquivo cd.c estava lendo o CWD passado pela shell por causa do uso do comando fgets(). Pela 
+shell eu passava a HOME e o CWD, depois no cd.c eu pegava o que estva no buffer usando fgets() 
+para pegar a home depois o cwd. O que acontecia era que para a char home do meu cd.c pegava 
+apenas uma informação que é da variável home. Teoricamente mais de uma informação é passada 
+pelo pipe, mas não sei exatamente o que está acontecendo.
+
+31/05 ----------------------------------------------------------------------------------------------------------------------------------------------------                                                                                                                         
+refiz o cd da seguinte maneira:                                                                                                 
+
+Exemplo 1 (relativo):                                           
+
+aluno@puc-so: /home/aluno                                       
+> cd pasta                                                                                                                      
+
+ou                                                                                                                              
+
+aluno@puc-so: /home/aluno                                       
+> cd ./pasta                                                                                                                    
+
+Resultado do novo caminho a ser verificado é:                   
+newPath -> /home/aluno/pasta                                                                                                    
+
+Exemplo 2 (absoluto):                                           
+aluno@puc-so: /home/aluno                                       
+> cd /home/aluno/projeto_SO/../projeto_SO/bin/../lib                                                                            
+
+Resultado do novo caminho a ser verificado é:                   
+newPath -> /home/aluno/projeto_SO/lib                                                                                           
+
+ETAPA 1:                                                                
+- Verificar se os argumentos são diretórios relativos (cd ./[nome_da_pasta] || cd [nome_da_pasta])
+ou absolutos (cd /[nome_do_caminho]). 
+	- Se for relativo coleta o CWD atual e concatena com o argumento:
+		"/home/aluno" + "pasta" -> /home/aluno/pasta 
+	- Se for absoluto substitui o CWD atual com o argumento (cd /home):
+		path_atual = "/home/aluno" passa a ser -> "/home"                                                       
+- Nesse comando terá sempre 1 argumento que é uma string (args[1]), sendo o primeiro argumento 
+(args[0]) o comando "cd".
+- Após fazer as verificação temos uma string path.
+
+ETAPA 2: (Normalização da path)
+- Nessa versão podemos misturar caracteres para retornar no diretório como "..", exemplo: 
+"/home/aluno/projeto_SO/../projeto_SO/bin/../lib". Para isso verificar essa string e retornar o path 
+correto igual a "/home/aluno/projeto_SO/lib". Fazemos as seguintes verificações:
+	1- Usa-se uma função que quebra a string path em pedaços com as palavras em ordem através do 
+    caracter "/" utilizando char* token. Após isso, temos que o conteúdo de char* token pode apontar 
+    para os índices:
+		Índice 0: home
+		Índice 1: aluno
+		Índice 2: projeto_SO
+		Índice 3: ..
+		Índice 4: projeto_SO
+		Índice 5: bin
+		Índice 6: ..
+		Índice 7: lib
+		Índice 8: NULL
+- Após isso, iniciamos o loop enquanto token não for NULL e dentro dele fazemos a verificação:
+	1- Se token for ".." apaga o último diretório
+	2- Se token for "." ignora e segue o loop (não faz diferença nesse caso "./" ("./" - "/" = "." é 
+    o mesmo que ""))
+	3- Se adiciona em uma outra string chamada finalPath e vai concatenando as palavras com "/" no loop,
+    por exempo:
+		LOOP 1: finalPath = home/
+		LOOP 2: finalPath = home/aluno/
+		LOOP 3: finalPath = home/aluno/projeto_SO/
+		LOOP 4: finalPath = home/aluno/
+		LOOP 5: finalPath = home/aluno/projeto_SO/
+		LOOP 6: finalPath = home/aluno/projeto_SO/bin
+		LOOP 7: finalPath = home/aluno/projeto_SO/
+		LOOP 8: finalPath = home/aluno/projeto_SO/lib
+		LOOP 9: NULL -> sai antes de realizar o loop pq chega no token = NULL
+Ao final, é adicionado "/" na var newPath e concatenado o conteúdo da variável finalPath. Então o 
+resultado do diretório que deverá ser verificado para atualizar CWD é newPath = "/home/aluno/projeto_SO/lib".
+
+02/06
+
+Diretório verificado com a função *DIR dir = opendir(newPath). Aqui ele tenta abrir o diretório, se ele 
+conseguir, a condição do if é verdadeira, com isso arquivo é fechado, o CWD é limpado ('\0') e depois concatenado com o novo caminho.
+Caso contrário ele printa mensagem que não foi possível encontrar o caminho.
