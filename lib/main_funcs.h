@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <dirent.h>
 #define BUFFER_SHELL_SIZE 256
 
 // FLAGS MASKS
@@ -212,6 +213,14 @@ static inline char* getEnv(char* eVar)
     while(*(currChar++) != '=');
 
     return currChar;
+}
+
+static inline bool checkDir(char dir){
+    DIR* dir = opendir(dir);
+    if (dir) {
+        return true;
+    }
+    return false;
 }
 
 
