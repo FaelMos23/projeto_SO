@@ -17,13 +17,16 @@ int main(int argc, char *argv[]) {
 
 
 //verify directory and flags -a -l 
-    for (int i = 1; i < argc; i++) {
+   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "-a") == 0) {
         show_all = 1;
     } else if (strcmp(argv[i], "-l") == 0) {
         long_list = 1;
-    } else { 
-        snprintf(directory, sizeof(directory), "%s/%s", cwd, argv[i]);  
+    } else if (argv[i][0] == '-') {
+        fprintf(stderr, "Erro: opção inválida '%s'\n", argv[i]);
+        return 1;
+    } else {
+        snprintf(directory, sizeof(directory), "%s/%s", cwd, argv[i]);
     }
 }
 
