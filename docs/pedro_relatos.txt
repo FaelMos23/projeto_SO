@@ -1,0 +1,27 @@
+PWD
+Para a implementação do comando pwd, foi utilizada a função getcwd() da biblioteca unistd.h
+que retorna o caminho absoluto do diretório atual, o programa simplesmente imprime esse caminho
+na tela, não há passagem de parâmetros via argumentos na execução.
+
+CAT
+Para a implementação do comando cat, foram utilizadas funções da biblioteca padrão do C (stdlib.h)
+para manipulação de arquivos, um ponteiro do tipo FILE é usado para abrir o arquivo com fopen()
+o conteúdo é lido caractere por caractere com fgetc() e impresso na saída padrão. 
+após a leitura, o arquivo é fechado com fclose(). O código não retorna valores ao programa principal 
+e espera como argumento o caminho do arquivo a ser lido.
+
+LS
+A implementação do comando ls utiliza funções da biblioteca dirent.h, que operam de forma semelhante 
+as funções de manipulação de arquivos, um ponteiro do tipo DIR é criado para representar o diretório 
+e a estrutura dirent armazena informações de cada entidade (arquivo ou subdiretório) contida naquele diretório específico
+
+struct dirent {
+    ino_t          d_ino;      
+    off_t          d_off;      
+    unsigned short d_reclen;   
+    unsigned char  d_type;     
+    char           d_name[256]; // nome do arquivo
+};
+
+A função readdir() atualiza o ponteiro para a proxima entrada do diretório. o programa não retorna 
+nada ao programa principal e recebe como argumento o caminho do diretório a ser lido.

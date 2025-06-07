@@ -3,7 +3,7 @@
     Integrantes: 
     - Luiza Lopes RA: 23013823
     - Maria Manzini RA: 23003063
-    - Pedro Rodolfo RA: 22
+    - Pedro Rodolfo RA: 22886287
     - Rafael Ramos RA: 23001236
     - Taynara Araújo RA: 22
     - Vitor Takei RA: 22
