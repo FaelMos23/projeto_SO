@@ -89,3 +89,13 @@ resultado do diretório que deverá ser verificado para atualizar CWD é newPath
 Diretório verificado com a função *DIR dir = opendir(newPath). Aqui ele tenta abrir o diretório, se ele 
 conseguir, a condição do if é verdadeira, com isso arquivo é fechado, o CWD é limpado ('\0') e depois concatenado com o novo caminho.
 Caso contrário ele printa mensagem que não foi possível encontrar o caminho.
+
+07/06
+path:
+
+Primeiro, o programa copia o argumento da variável path para uma variável temporária. Em seguida, verifica se há mais de um argumento
+(já que o nome do comando também conta como argumento). Se houver, entra em um loop que percorre os argumentos, ignorando o nome do comando.
+Para cada argumento restante (que representa um diretório), o programa verifica se o diretório existe. Se existir, ele é adicionado à 
+variável temporária com ":" como separador. Se não existir, é exibida uma mensagem de erro informando o caminho inválido.
+Quando todos os argumentos forem processados, o conteúdo original do path é substituído pela nova string de diretórios válidos separados 
+pelo caracter ":". Caso o comando seja executado sem argumentos adicionais, o programa apenas imprime os caminhos atuais do PATH.

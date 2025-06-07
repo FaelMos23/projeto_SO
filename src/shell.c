@@ -23,20 +23,20 @@ int main()
 
     // initializes enviroment variables
     struct passwd* pw = getpwuid(geteuid());
-    
+
     if (pw == NULL) {
         perror("getpwuid");
         return 1;
     }
 
-    char env_var[5][BUFFER_SHELL_SIZE] = {"USER=", 
-                                          "MACHINE=", 
+    char env_var[5][BUFFER_SHELL_SIZE] = {"USER=",
+                                          "MACHINE=",
                                           "HOME=",
-                                          "CWD=", 
+                                          "CWD=",
                                           "PATH="};
 
     // 0-> USER, 1-> MACHINE, 2-> HOME, 3-> CWD, 4-> PATH
-    char * const envp[6] = {env_var[0], 
+    char * const envp[6] = {env_var[0],
                             env_var[1],
                             env_var[2],
                             env_var[3],
@@ -60,10 +60,10 @@ int main()
     strcat(env_var[4], ":");                // maybe delete this
     strcat(env_var[4], temp_PATH);          // second path for
     strcat(env_var[4], "/extras\0");        // final presentation
-    
+
     // number of paths
     //int path_dirs = 1; // to usando isso?
-    
+
     // defining values
     int can_run = 1;
     char read_buffer[BUFFER_SHELL_SIZE];
@@ -88,7 +88,7 @@ int main()
                 if (fgets(read_buffer, BUFFER_SHELL_SIZE, file) == NULL) {
                     readScript = 0;
                     fclose(file);
-                    
+
                     // continue as normal
                     fgets(read_buffer, BUFFER_SHELL_SIZE, stdin);
                 }
@@ -115,8 +115,8 @@ int main()
             proc_info* procArray;
             int num_pipes = 0;
             int currPipe = 0;
-        
-            
+
+
             int num_procs = getProcesses(&procArray, read_buffer, &num_pipes);
 
             // prepare pipes
@@ -187,8 +187,8 @@ int main()
 
                             // new string to hold the file path
                             char temp[BUFFER_SHELL_SIZE] = "";
-                            char finalPath[BUFFER_SHELL_SIZE] = "";
-                            char newPath[BUFFER_SHELL_SIZE] = "";
+                            char finalCWD[BUFFER_SHELL_SIZE] = "";
+                            char newCWD[BUFFER_SHELL_SIZE] = "";
 
                             if(procArray[proc_loop].argc > 1){
                                 // verification of the interaction with cd (ignore the first "/" or "./" the string)
@@ -219,7 +219,7 @@ int main()
                                     if(strcmp(token, "..") == 0)
                                     {
                                         // remove the last directory from CWD
-                                        char* last_slash = strrchr(finalPath, '/');
+                                        char* last_slash = strrchr(finalCWD, '/');
                                         if (last_slash != NULL && last_slash != temp) {
                                             *last_slash = '\0'; // remove the last directory
                                         }
@@ -231,31 +231,31 @@ int main()
                                     else
                                     {
                                         // add the directory to CWD                                        if(strcmp(newPath, "/") != 0)
-                                        if (strlen(finalPath) > 0) {
-                                            strcat(finalPath, "/");
+                                        if (strlen(finalCWD) > 0) {
+                                            strcat(finalCWD, "/");
                                         }
-                                        strcat(finalPath, token);
+                                        strcat(finalCWD, token);
                                     }
                                     token = strtok(NULL, "/");
                                 }
                                 // printf("Variable finalPath: %s\n", finalPath);
                                 // update newPath
-                                strcpy(newPath, "/");
-                                strcat(newPath, finalPath);
+                                strcpy(newCWD, "/");
+                                strcat(newCWD, finalCWD);
                                 // printf("Variable newPath: %s\n", newPath);
 
                                 // verific if exist this path
-                                DIR* dir = opendir(newPath);
+                                DIR* dir = opendir(newCWD);
                                 if (dir) {
                                     // The dir open, so it exist
                                     closedir(dir);
 
                                     env_var[3][0+4] = '\0'; // clear CWD
-                                    strcat(env_var[3], newPath); // Update CWD
-                                    
+                                    strcat(env_var[3], newCWD); // Update CWD
+
                                     // printf("%s\n", env_var[3]);
                                 }else{
-                                    printf("%scd: Cannot find the path '%s' because it does not exist.%s\n", RED, newPath, RESET);
+                                    printf("%scd: Cannot find the path '%s' because it does not exist.%s\n", RED, newCWD, RESET);
                                 }
                             }else{
                                 // cd NULL return at HOME
@@ -268,7 +268,47 @@ int main()
                             // path?
                             if(!strcmp(procArray[proc_loop].command, "path"))
                             {
-                                // inserir código de "path"
+                                char temp[BUFFER_SHELL_SIZE] = "";
+
+                                if (procArray[proc_loop].argc > 1){
+                                    int countPath = 0;
+
+                                    strcpy(temp, env_var[4]); // Copy PATH
+
+                                    while (countPath != procArray[proc_loop].argc) {
+                                        if(strcmp(procArray[proc_loop].args[countPath], procArray[proc_loop].command) != 0){
+                                            if (checkDir(procArray[proc_loop].args[countPath]) == 1) {
+                                                strcat(temp, ":"); // Add ":" in string
+                                                strcat(temp, procArray[proc_loop].args[countPath]);
+                                            }else{
+                                                printf("%spath: Cannot find the path '%s' because it does not exist.%s\n", RED, procArray[proc_loop].args[countPath], RESET);
+                                            }
+                                        }                               
+                                        countPath++;
+                                    }
+
+                                    env_var[4][0] = '\0'; // clear PATH
+                                    strcpy(env_var[4], temp); // copy new path
+                                    // printf("PATH:\n%s\n", env_var[4]);
+
+                                }else{
+
+                                    strcpy(temp, env_var[4]);
+
+                                    char* token = strtok(temp, "=");
+                                    printf("\nCurrent PATHS:");
+                                    while(token != NULL){
+                                        if (strcmp(token, "PATH") == 0){
+                                            // Ignore token
+
+                                        }else{
+                                            printf("%s\n", token);
+                                        }
+
+                                        // Next token
+                                        token = strtok(NULL, ":");
+                                    }
+                                }
                             }
                             else
                             {
@@ -310,11 +350,11 @@ int main()
 
                                         if(procArray[proc_loop].flags & OUT_FILE)
                                         {
-                                            // send information to 
+                                            // send information to
                                             // procArray[proc_loop].outputFilePath
                                             // may be relative or absolute path
 
-                                            
+
                                             char filePath_output[BUFFER_SHELL_SIZE];
                                             if(procArray[proc_loop].outputFilePath[0] == '/')
                                             {
@@ -328,7 +368,7 @@ int main()
                                                 strcat(filePath_output, procArray[proc_loop].command);
                                             }
 
-                                            
+
                                             int fd = open(filePath_output,
                                                             O_WRONLY | O_CREAT | O_TRUNC,
                                                             0666 ); // rw-rw-rw-
@@ -409,11 +449,11 @@ int main()
 
                                         if(procArray[proc_loop].flags & OUT_FILE)
                                         {
-                                            // send information to 
+                                            // send information to
                                             // procArray[proc_loop].outputFilePath
                                             // may be relative or absolute path
 
-                                            
+
                                             char filePath_output[BUFFER_SHELL_SIZE];
                                             if(procArray[proc_loop].outputFilePath[0] == '/')
                                             {
@@ -470,13 +510,13 @@ int main()
                                     }
 
                                 }
-                                
+
                             }
 
                         }
-                    
+
                     }
-                    
+
                 }
 
             }
