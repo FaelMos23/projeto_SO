@@ -245,15 +245,9 @@ int main()
                                 // printf("Variable newPath: %s\n", newPath);
 
                                 // verific if exist this path
-                                DIR* dir = opendir(newCWD);
-                                if (dir) {
-                                    // The dir open, so it exist
-                                    closedir(dir);
-
+                                if (checkDir(newCWD) == 1) {
                                     env_var[3][0+4] = '\0'; // clear CWD
                                     strcat(env_var[3], newCWD); // Update CWD
-
-                                    // printf("%s\n", env_var[3]);
                                 }else{
                                     printf("%scd: Cannot find the path '%s' because it does not exist.%s\n", RED, newCWD, RESET);
                                 }
