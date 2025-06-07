@@ -36,7 +36,7 @@ ___
 nao entendo de git :(
 
 ## Como rodar o shell
-> Se tiver apenas a pasta 'src':
+> Se tiver apenas as pastas 'src' e 'lib' (a lib é necessária pois possui funções usadas no shell.c):
 
     Existe um arquivo batch (script de comandos) que cria os arquivos binários base.
     Apenas execute (se estiver na pasta 'projeto_SO'):
