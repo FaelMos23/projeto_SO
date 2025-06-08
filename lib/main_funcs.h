@@ -224,5 +224,26 @@ static inline int checkDir(char* dir){
     return 0;
 }
 
+static inline int dirInPath(char* dir, char* PATH)
+{
+    char* tmp = strdup(PATH);
+    char* currPath = strtok(tmp, "=");
+    int res = 1;
+
+    for(currPath = strtok(NULL, ":"); currPath != NULL; currPath = strtok(NULL, ":"))
+    {
+        if(!strcmp(currPath, dir))
+            break;
+
+        res++;
+    }
+
+    free(tmp);
+
+    if(currPath == NULL)
+        return 0;
+    return res;
+}
+
 
 #endif

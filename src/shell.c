@@ -57,8 +57,6 @@ int main()
     strcat(env_var[4], dirname(temp_PATH));
     strcat(env_var[4], "/comm");
 
-    // number of paths
-    //int path_dirs = 1; // to usando isso?
 
     // defining values
     int can_run = 1;
@@ -261,25 +259,98 @@ int main()
                                 char temp[BUFFER_SHELL_SIZE] = "";
 
                                 if (procArray[proc_loop].argc > 1){
-                                    int countPath = 0;
+                                    int countPath = 1; // starts at the arguments, [0] is the command
+                                    int remove = 0;
 
                                     strcpy(temp, env_var[4]); // Copy PATH
 
-                                    while (countPath != procArray[proc_loop].argc) {
-                                        if(strcmp(procArray[proc_loop].args[countPath], procArray[proc_loop].command) != 0){
-                                            if (checkDir(procArray[proc_loop].args[countPath]) == 1) {
-                                                strcat(temp, ":"); // Add ":" in string
-                                                strcat(temp, procArray[proc_loop].args[countPath]);
-                                            }else{
-                                                printf("%spath: Cannot find the path '%s' because it does not exist.%s\n", RED, procArray[proc_loop].args[countPath], RESET);
-                                            }
-                                        }                               
-                                        countPath++;
+                                    // reset path
+                                    if(procArray[proc_loop].args[1][0] == '-' && procArray[proc_loop].args[1][1] == 'r')
+                                    {
+                                        strcpy(temp, "PATH=");
+                                        len = readlink("/proc/self/exe", temp_PATH, sizeof(temp_PATH)-1);
+                                        temp_PATH[len] = '\0';
+                                        strcat(temp, dirname(temp_PATH));
+                                        strcat(temp, "/comm");
                                     }
+                                    else
+                                    {
+                                        // delete path
+                                        if(procArray[proc_loop].args[1][0] == '-' && procArray[proc_loop].args[1][1] == 'd')
+                                        {
+                                            remove = 1;
+                                            countPath++;
+                                        }
 
+                                        while (countPath != procArray[proc_loop].argc) {
+
+                                            // used because the dir can't be added if it already exists and it can only be removed if it exists
+                                            int inPATH = dirInPath(procArray[proc_loop].args[countPath], env_var[4]);
+
+                                            if(remove)
+                                            {
+                                                if(inPATH)
+                                                {
+                                                    int path_rem_loop;
+                                                    char* toBeRemoved;
+
+                                                    // finds the pointer to the dir that will be removed
+                                                    for(path_rem_loop=0; temp[path_rem_loop]!='\0' && inPATH>1; path_rem_loop++)
+                                                    {
+                                                        if(temp[path_rem_loop] == ':')
+                                                            inPATH--;
+                                                    }
+
+                                                    
+                                                    char *p = strstr(temp, procArray[proc_loop].args[countPath]);
+                                                    if (p)
+                                                    {
+                                                        int len = strlen(procArray[proc_loop].args[countPath]);
+                                                        char *after = p + len;
+
+                                                        // for middle and end elements
+                                                        if (*after == ':') {
+                                                            after++;
+                                                        }
+                                                        // for first element
+                                                        else 
+                                                            if (p > temp && p[-1] == ':') {
+                                                                p--;
+                                                            }
+
+                                                        memmove(p, after, strlen(after) + 1);
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    printf("%spath: The directory '%s' can't be removed from PATH because it isn't there.%s\n", RED, procArray[proc_loop].args[countPath], RESET);
+                                                }
+                                            }
+                                            else 
+                                            {
+                                                if (checkDir(procArray[proc_loop].args[countPath])) {
+                                                    if(!inPATH)
+                                                    {
+                                                        if(temp[5] != '\0')
+                                                            strcat(temp, ":"); // Add ":" in string
+                                                        strcat(temp, procArray[proc_loop].args[countPath]);
+                                                    }
+                                                    else
+                                                    {
+                                                        printf("%spath: The directory '%s' is already on PATH.%s\n", RED, procArray[proc_loop].args[countPath], RESET);
+                                                    }
+                                                }else{
+                                                    printf("%spath: Cannot find the path '%s' because it does not exist.%s\n", RED, procArray[proc_loop].args[countPath], RESET);
+                                                }
+                                            }
+                                            countPath++;
+                                        }
+
+                                    }
+                                
                                     env_var[4][0] = '\0'; // clear PATH
                                     strcpy(env_var[4], temp); // copy new path
-                                    // printf("PATH:\n%s\n", env_var[4]);
+
 
                                 }else{
 
