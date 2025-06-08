@@ -6,7 +6,7 @@
     - Pedro Rodolfo RA: 22886287
     - Rafael Ramos RA: 23001236
     - Taynara Araújo RA: 22904270
-    - Vitor Takei RA: 22
+    - Vitor Takei RA: 22023740
 
 ___
 
