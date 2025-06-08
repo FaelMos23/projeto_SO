@@ -62,9 +62,6 @@ int main()
     int can_run = 1;
     char read_buffer[BUFFER_SHELL_SIZE];
 
-    // pipes initialization
-    //int verify; delete?
-
     // script interaction
     FILE* file = NULL;
     int readScript = 0;
@@ -98,12 +95,24 @@ int main()
             } else {
                 fgets(read_buffer, BUFFER_SHELL_SIZE, stdin);
             }
+            else
+            {
+                read_buffer[strcspn(read_buffer, "\r\n")] = '\0';
+
+                //if (!strcmp(read_buffer, "")) strcpy(read_buffer, "\n");
+                strcat(read_buffer, "\n");
+
+                printf("%s\n", read_buffer);
+            }
         }
         else  // reads from terminal
+        {
             fgets(read_buffer, BUFFER_SHELL_SIZE, stdin);
+        }
+
 
         // check for lineskip
-        if(read_buffer[0] != '\n')
+        if(skip(read_buffer))
         {
             // array that contains the information for each flag
             proc_info* procArray;
@@ -374,7 +383,7 @@ int main()
                             else
                             {
                                 // executable?
-                                if(procArray[proc_loop].command[0] == '.' || procArray[proc_loop].command[0] == '/')
+                                if(isExec(procArray[proc_loop].command))
                                 {
                                     pid[proc_loop] = fork();
                                     if(pid[proc_loop] < 0)
@@ -462,10 +471,10 @@ int main()
                                         execv(filePath_file, procArray[proc_loop].args);
 
                                         // error handling
-                                        char error_text[BUFFER_SHELL_SIZE];
-                                        strcpy(error_text, "Fail to run executable ");
-                                        strcat(error_text, procArray[proc_loop].command);
-                                        perror(error_text);
+                                        char error_exec_run[64];
+                                        snprintf(error_exec_run, 64, "%sFail to run executable%s ", RED, RESET);
+                                        strcat(error_exec_run, procArray[proc_loop].command);
+                                        perror(error_exec_run);
                                         _exit(2);
                                     }
                                 }
@@ -562,10 +571,10 @@ int main()
                                             execve(filePath, procArray[proc_loop].args, envp);
                                         }
                                         // error handling, none of the paths worked
-                                        char error_text[BUFFER_SHELL_SIZE];
-                                        strcpy(error_text, "Fail to run command ");
-                                        strcat(error_text, procArray[proc_loop].command);
-                                        perror(error_text);
+                                        char error_comm_run[64];
+                                        snprintf(error_comm_run, 64, "%sFail to run command:%s ", RED, RESET);
+                                        strcat(error_comm_run, procArray[proc_loop].command);
+                                        perror(error_comm_run);
                                         _exit(2);
 
                                     }
