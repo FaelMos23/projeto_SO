@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <dirent.h>
 #define BUFFER_SHELL_SIZE 256
 
 // FLAGS MASKS
@@ -227,7 +228,6 @@ static inline char* getEnv(char* eVar)
 
     return currChar;
 }
-
 static inline int skip(char* line)
 {
     int i;
@@ -240,5 +240,34 @@ static inline int skip(char* line)
     return 0;
 }
 
+static inline int checkDir(char* dir){
+    DIR* d = opendir(dir);
+    if (d) {
+        closedir(d);  // memory leak if not closed
+        return 1;
+    }
+    return 0;
+}
+
+static inline int dirInPath(char* dir, char* PATH)
+{
+    char* tmp = strdup(PATH);
+    char* currPath = strtok(tmp, "=");
+    int res = 1;
+
+    for(currPath = strtok(NULL, ":"); currPath != NULL; currPath = strtok(NULL, ":"))
+    {
+        if(!strcmp(currPath, dir))
+            break;
+
+        res++;
+    }
+
+    free(tmp);
+
+    if(currPath == NULL)
+        return 0;
+    return res;
+}
 
 #endif

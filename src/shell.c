@@ -23,20 +23,20 @@ int main()
 
     // initializes enviroment variables
     struct passwd* pw = getpwuid(geteuid());
-    
+
     if (pw == NULL) {
         perror("getpwuid");
         return 1;
     }
 
-    char env_var[5][BUFFER_SHELL_SIZE] = {"USER=", 
-                                          "MACHINE=", 
+    char env_var[5][BUFFER_SHELL_SIZE] = {"USER=",
+                                          "MACHINE=",
                                           "HOME=",
-                                          "CWD=", 
+                                          "CWD=",
                                           "PATH="};
 
     // 0-> USER, 1-> MACHINE, 2-> HOME, 3-> CWD, 4-> PATH
-    char * const envp[6] = {env_var[0], 
+    char * const envp[6] = {env_var[0],
                             env_var[1],
                             env_var[2],
                             env_var[3],
@@ -57,10 +57,7 @@ int main()
     strcat(env_var[4], dirname(temp_PATH));
     strcat(env_var[4], "/comm");
 
-    strcat(env_var[4], ":");                // maybe DELETE this
-    strcat(env_var[4], temp_PATH);          // second path for
-    strcat(env_var[4], "/extras\0");        // final presentation
-    
+
     // defining values
     int can_run = 1;
     char read_buffer[BUFFER_SHELL_SIZE];
@@ -77,11 +74,25 @@ int main()
         // reads from script
         if(readScript)
         {
-            if (fgets(read_buffer, BUFFER_SHELL_SIZE, file) == NULL) {
-                readScript = 0;
-                fclose(file);
-                
-                // continue as normal
+            if (readScript)
+            {
+                if (fgets(read_buffer, BUFFER_SHELL_SIZE, file) == NULL) {
+                    readScript = 0;
+                    fclose(file);
+
+                    // continue as normal
+                    fgets(read_buffer, BUFFER_SHELL_SIZE, stdin);
+                }
+                else
+                {
+                    read_buffer[strcspn(read_buffer, "\r\n")] = '\0';
+
+                    if (!strcmp(read_buffer, "")) strcpy(read_buffer, "\n");
+
+                    printf("%s\n", read_buffer);
+                }
+
+            } else {
                 fgets(read_buffer, BUFFER_SHELL_SIZE, stdin);
             }
             else
@@ -107,7 +118,8 @@ int main()
             proc_info* procArray;
             int num_pipes = 0;
             int currPipe = 0;
-        
+
+
             int num_procs = getProcesses(&procArray, read_buffer, &num_pipes);
 
             // prepare pipes
@@ -178,8 +190,8 @@ int main()
 
                             // new string to hold the file path
                             char temp[BUFFER_SHELL_SIZE] = "";
-                            char finalPath[BUFFER_SHELL_SIZE] = "";
-                            char newPath[BUFFER_SHELL_SIZE] = "";
+                            char finalCWD[BUFFER_SHELL_SIZE] = "";
+                            char newCWD[BUFFER_SHELL_SIZE] = "";
 
                             if(procArray[proc_loop].argc > 1){
                                 // verification of the interaction with cd (ignore the first "/" or "./" the string)
@@ -210,7 +222,7 @@ int main()
                                     if(strcmp(token, "..") == 0)
                                     {
                                         // remove the last directory from CWD
-                                        char* last_slash = strrchr(finalPath, '/');
+                                        char* last_slash = strrchr(finalCWD, '/');
                                         if (last_slash != NULL && last_slash != temp) {
                                             *last_slash = '\0'; // remove the last directory
                                         }
@@ -222,31 +234,25 @@ int main()
                                     else
                                     {
                                         // add the directory to CWD                                        if(strcmp(newPath, "/") != 0)
-                                        if (strlen(finalPath) > 0) {
-                                            strcat(finalPath, "/");
+                                        if (strlen(finalCWD) > 0) {
+                                            strcat(finalCWD, "/");
                                         }
-                                        strcat(finalPath, token);
+                                        strcat(finalCWD, token);
                                     }
                                     token = strtok(NULL, "/");
                                 }
                                 // printf("Variable finalPath: %s\n", finalPath);
                                 // update newPath
-                                strcpy(newPath, "/");
-                                strcat(newPath, finalPath);
+                                strcpy(newCWD, "/");
+                                strcat(newCWD, finalCWD);
                                 // printf("Variable newPath: %s\n", newPath);
 
                                 // verific if exist this path
-                                DIR* dir = opendir(newPath);
-                                if (dir) {
-                                    // The dir open, so it exist
-                                    closedir(dir);
-
+                                if (checkDir(newCWD) == 1) {
                                     env_var[3][0+4] = '\0'; // clear CWD
-                                    strcat(env_var[3], newPath); // Update CWD
-                                    
-                                    // printf("%s\n", env_var[3]);
+                                    strcat(env_var[3], newCWD); // Update CWD
                                 }else{
-                                    printf("%scd: Cannot find the path '%s' because it does not exist.%s\n", RED, newPath, RESET);
+                                    printf("%scd: Cannot find the path '%s' because it does not exist.%s\n", RED, newCWD, RESET);
                                 }
                             }else{
                                 // cd NULL return at HOME
@@ -259,7 +265,120 @@ int main()
                             // path?
                             if(!strcmp(procArray[proc_loop].command, "path"))
                             {
-                                // inserir codigo de "path"
+                                char temp[BUFFER_SHELL_SIZE] = "";
+
+                                if (procArray[proc_loop].argc > 1){
+                                    int countPath = 1; // starts at the arguments, [0] is the command
+                                    int remove = 0;
+
+                                    strcpy(temp, env_var[4]); // Copy PATH
+
+                                    // reset path
+                                    if(procArray[proc_loop].args[1][0] == '-' && procArray[proc_loop].args[1][1] == 'r')
+                                    {
+                                        strcpy(temp, "PATH=");
+                                        len = readlink("/proc/self/exe", temp_PATH, sizeof(temp_PATH)-1);
+                                        temp_PATH[len] = '\0';
+                                        strcat(temp, dirname(temp_PATH));
+                                        strcat(temp, "/comm");
+                                    }
+                                    else
+                                    {
+                                        // delete path
+                                        if(procArray[proc_loop].args[1][0] == '-' && procArray[proc_loop].args[1][1] == 'd')
+                                        {
+                                            remove = 1;
+                                            countPath++;
+                                        }
+
+                                        while (countPath != procArray[proc_loop].argc) {
+
+                                            // used because the dir can't be added if it already exists and it can only be removed if it exists
+                                            int inPATH = dirInPath(procArray[proc_loop].args[countPath], env_var[4]);
+
+                                            if(remove)
+                                            {
+                                                if(inPATH)
+                                                {
+                                                    int path_rem_loop;
+                                                    char* toBeRemoved;
+
+                                                    // finds the pointer to the dir that will be removed
+                                                    for(path_rem_loop=0; temp[path_rem_loop]!='\0' && inPATH>1; path_rem_loop++)
+                                                    {
+                                                        if(temp[path_rem_loop] == ':')
+                                                            inPATH--;
+                                                    }
+
+                                                    
+                                                    char *p = strstr(temp, procArray[proc_loop].args[countPath]);
+                                                    if (p)
+                                                    {
+                                                        int len = strlen(procArray[proc_loop].args[countPath]);
+                                                        char *after = p + len;
+
+                                                        // for middle and end elements
+                                                        if (*after == ':') {
+                                                            after++;
+                                                        }
+                                                        // for first element
+                                                        else 
+                                                            if (p > temp && p[-1] == ':') {
+                                                                p--;
+                                                            }
+
+                                                        memmove(p, after, strlen(after) + 1);
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    printf("%spath: The directory '%s' can't be removed from PATH because it isn't there.%s\n", RED, procArray[proc_loop].args[countPath], RESET);
+                                                }
+                                            }
+                                            else 
+                                            {
+                                                if (checkDir(procArray[proc_loop].args[countPath])) {
+                                                    if(!inPATH)
+                                                    {
+                                                        if(temp[5] != '\0')
+                                                            strcat(temp, ":"); // Add ":" in string
+                                                        strcat(temp, procArray[proc_loop].args[countPath]);
+                                                    }
+                                                    else
+                                                    {
+                                                        printf("%spath: The directory '%s' is already on PATH.%s\n", RED, procArray[proc_loop].args[countPath], RESET);
+                                                    }
+                                                }else{
+                                                    printf("%spath: Cannot find the path '%s' because it does not exist.%s\n", RED, procArray[proc_loop].args[countPath], RESET);
+                                                }
+                                            }
+                                            countPath++;
+                                        }
+
+                                    }
+                                
+                                    env_var[4][0] = '\0'; // clear PATH
+                                    strcpy(env_var[4], temp); // copy new path
+
+
+                                }else{
+
+                                    strcpy(temp, env_var[4]);
+
+                                    char* token = strtok(temp, "=");
+                                    printf("\nCurrent PATHS:\n");
+                                    while(token != NULL){
+                                        if (strcmp(token, "PATH") == 0){
+                                            // Ignore token
+
+                                        }else{
+                                            printf("%s\n", token);
+                                        }
+
+                                        // Next token
+                                        token = strtok(NULL, ":");
+                                    }
+                                }
                             }
                             else
                             {
@@ -301,11 +420,11 @@ int main()
 
                                         if(procArray[proc_loop].flags & OUT_FILE)
                                         {
-                                            // send information to 
+                                            // send information to
                                             // procArray[proc_loop].outputFilePath
                                             // may be relative or absolute path
 
-                                            
+
                                             char filePath_output[BUFFER_SHELL_SIZE];
                                             if(procArray[proc_loop].outputFilePath[0] == '/')
                                             {
@@ -319,7 +438,7 @@ int main()
                                                 strcat(filePath_output, procArray[proc_loop].command);
                                             }
 
-                                            
+
                                             int fd = open(filePath_output,
                                                             O_WRONLY | O_CREAT | O_TRUNC,
                                                             0666 ); // rw-rw-rw-
@@ -400,11 +519,11 @@ int main()
 
                                         if(procArray[proc_loop].flags & OUT_FILE)
                                         {
-                                            // send information to 
+                                            // send information to
                                             // procArray[proc_loop].outputFilePath
                                             // may be relative or absolute path
 
-                                            
+
                                             char filePath_output[BUFFER_SHELL_SIZE];
                                             if(procArray[proc_loop].outputFilePath[0] == '/')
                                             {
@@ -461,13 +580,13 @@ int main()
                                     }
 
                                 }
-                                
+
                             }
 
                         }
-                    
+
                     }
-                    
+
                 }
 
             }
